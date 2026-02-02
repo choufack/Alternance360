@@ -42,13 +42,13 @@ export default async function PositioningPage() {
 
     // 2. Format Competences for Stepper
     // Flatten the blocs structure
-    const competences = contract.referentiel.blocs.flatMap(bloc =>
+    const competences = contract.referentiel?.blocs?.flatMap(bloc =>
         bloc.competences.map(comp => ({
             id: comp.id,
             description: comp.description,
             bloc_title: bloc.title
         }))
-    )
+    ) || []
 
     // 3. Check for Existing Draft
     const existingDraft = await db.initialAssessment.findFirst({

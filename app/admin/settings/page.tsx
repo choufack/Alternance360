@@ -4,7 +4,9 @@ import { redirect } from "next/navigation"
 import { TenantSettingsForm } from "@/components/admin/settings/tenant-settings-form"
 import { ApiKeyManagement } from "@/components/admin/settings/api-key-management"
 import { WebhookSettings } from "@/components/admin/settings/webhook-settings"
+import { AiSettingsForm } from "@/components/admin/settings/ai-settings-form"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Zap, Cpu } from "lucide-react"
 
 export default async function SettingsPage() {
     const session = await auth()
@@ -37,6 +39,10 @@ export default async function SettingsPage() {
                     <TabsTrigger value="general" className="px-6 py-2.5 rounded-xl font-bold text-sm transition-all data-[state=active]:text-blue-600 text-slate-500">
                         Général
                     </TabsTrigger>
+                    <TabsTrigger value="ia" className="px-6 py-2.5 rounded-xl font-bold text-sm transition-all data-[state=active]:text-blue-600 text-slate-500 flex gap-2 items-center">
+                        <Zap size={14} />
+                        Intelligence Artificielle
+                    </TabsTrigger>
                     <TabsTrigger value="integrations" className="px-6 py-2.5 rounded-xl font-bold text-sm transition-all data-[state=active]:text-blue-600 text-slate-500">
                         Intégrations (API)
                     </TabsTrigger>
@@ -46,6 +52,10 @@ export default async function SettingsPage() {
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
                         <TenantSettingsForm tenant={tenant} />
                     </div>
+                </TabsContent>
+
+                <TabsContent value="ia">
+                    <AiSettingsForm currentKey={process.env.GOOGLE_API_KEY} />
                 </TabsContent>
 
                 <TabsContent value="integrations">

@@ -71,7 +71,7 @@ export async function stopImpersonation() {
             tenantId: originalUser.tenantId,
         },
         isImpersonating: false,
-        originalUserId: null
+        originalUserId: undefined
     })
 
     await logAuditEvent('SUPER_ADMIN_IMPERSONATION_STOP', 'User', originalUserId, {

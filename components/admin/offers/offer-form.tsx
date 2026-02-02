@@ -25,7 +25,7 @@ import { toast } from 'sonner'
 import { Plus, Loader2 } from 'lucide-react'
 
 interface OfferFormProps {
-    referentiels: { id: string, title: string, codeRncp: string }[]
+    referentiels: { id: string, title: string, codeRncp: string, isMarketplacePack?: boolean }[]
     existingOffer?: any // Type properly if possible
     trigger?: React.ReactNode
     onSuccess?: () => void
@@ -113,7 +113,7 @@ export function OfferForm({ referentiels, existingOffer, trigger, onSuccess }: O
                                 <SelectContent>
                                     {referentiels.map(ref => (
                                         <SelectItem key={ref.id} value={ref.id}>
-                                            [{ref.codeRncp}] {ref.title}
+                                            [{ref.codeRncp}] {ref.title} {ref.isMarketplacePack && "📦"}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -164,7 +164,7 @@ export function OfferForm({ referentiels, existingOffer, trigger, onSuccess }: O
                             <Label>Date de Début</Label>
                             <Input
                                 type="date"
-                                value={formData.startDate}
+                                value={formData.startDate as string}
                                 onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                                 required
                                 className="h-12 rounded-xl bg-slate-50 border-slate-200"
@@ -175,7 +175,7 @@ export function OfferForm({ referentiels, existingOffer, trigger, onSuccess }: O
                             <Label>Date de Fin</Label>
                             <Input
                                 type="date"
-                                value={formData.endDate}
+                                value={formData.endDate as string}
                                 onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                                 required
                                 className="h-12 rounded-xl bg-slate-50 border-slate-200"

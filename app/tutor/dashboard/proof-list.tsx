@@ -1,21 +1,21 @@
 'use client'
 
 import { useState } from 'react'
-import { validateProof } from '../actions'
+import { validateProof } from '@/app/actions/validate-proof'
 import { FileText, Image as ImageIcon, ExternalLink, CheckCircle2, XCircle, MessageSquare, Loader2 } from 'lucide-react'
 
 type Proof = {
     id: string
-    created_at: string
-    titre: string
-    url_fichier: string
-    type: 'PDF' | 'PHOTO'
-    status: 'pending' | 'validated' | 'rejected'
-    feedback: string | null
-    user_id: string
-    profiles?: {
-        first_name: string
-        last_name: string
+    createdAt: Date | string
+    title: string
+    url: string
+    type: 'PDF' | 'PHOTO' | 'SIGNATURE'
+    status: 'PENDING' | 'VALIDATED' | 'REJECTED'
+    feedback?: string | null
+    userId: string
+    user?: {
+        firstName: string | null
+        lastName: string | null
     }
 }
 
@@ -26,7 +26,7 @@ export function ProofList({ proofs, currentUserId }: { proofs: Proof[], currentU
     const [feedback, setFeedback] = useState<string>('')
     const [selectedProof, setSelectedProof] = useState<string | null>(null)
 
-    const handleValidation = async (id: string, status: 'validated' | 'rejected') => {
+    const handleValidation = async (id: string, status: 'VALIDATED' | 'REJECTED') => {
         setProcessingId(id)
         await validateProof(id, status, feedback)
         setProcessingId(null)
@@ -56,12 +56,12 @@ export function ProofList({ proofs, currentUserId }: { proofs: Proof[], currentU
                                 {proof.type === 'PDF' ? <FileText size={24} /> : <ImageIcon size={24} />}
                             </div>
                             <div className="w-full">
-                                <h3 className="font-bold text-slate-900 text-lg">{proof.titre}</h3>
+                                <h3 className="font-bold text-slate-900 text-lg">{proof.title}</h3>
                                 <p className="text-slate-500 text-sm font-medium mt-1">
-                                    Par <span className="text-indigo-600">{proof.profiles?.first_name} {proof.profiles?.last_name}</span> • Le {new Date(proof.created_at).toLocaleDateString('fr-FR')}
+                                    Par <span className="text-indigo-600">{proof.user?.firstName} {proof.user?.lastName}</span> • Le {new Date(proof.createdAt).toLocaleDateString('fr-FR')}
                                 </p>
                                 <a
-                                    href={proof.url_fichier}
+                                    href={proof.url}
                                     target="_blank"
                                     className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-indigo-600 mt-2 transition-colors"
                                 >
@@ -87,7 +87,7 @@ export function ProofList({ proofs, currentUserId }: { proofs: Proof[], currentU
                                     />
                                     <div className="flex gap-2">
                                         <button
-                                            onClick={() => handleValidation(proof.id, 'validated')}
+                                            onClick={() => handleValidation(proof.id, 'VALIDATED')}
                                             disabled={!!processingId}
                                             className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-2 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
                                         >
@@ -95,7 +95,7 @@ export function ProofList({ proofs, currentUserId }: { proofs: Proof[], currentU
                                             Valider
                                         </button>
                                         <button
-                                            onClick={() => handleValidation(proof.id, 'rejected')}
+                                            onClick={() => handleValidation(proof.id, 'REJECTED')}
                                             disabled={!!processingId}
                                             className="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-2 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
                                         >

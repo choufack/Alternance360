@@ -4,12 +4,14 @@ import { AlertTriangle, Download, ShieldCheck, Eye, Search, FileText } from 'luc
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from "@/components/ui/card"
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-export default async function AuditDashboard({ params }: { params: { token: string } }) {
+export default async function AuditDashboard({ params }: { params: Promise<{ token: string }> }) {
+    const { token } = await params
     let data
     try {
-        data = await getAuditData(params.token)
+        data = await getAuditData(token)
     } catch (e) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -156,7 +158,7 @@ function ApprenticeCard({ apprentice, mode }: { apprentice: any, mode: 'ind11' |
                 <Button variant="outline" className="rounded-xl font-bold gap-2 text-slate-600">
                     <Eye size={16} /> Détails
                 </Button>
-                <Button variant="ghost" size="icon" className="text-slate-400 hover:text-indigo-600 rounded-xl">
+                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-indigo-600 rounded-xl">
                     <Download size={18} />
                 </Button>
             </div>

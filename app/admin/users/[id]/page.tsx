@@ -48,7 +48,7 @@ export default async function ApprenticeProfilePage({ params }: { params: Promis
     if (!apprentice) notFound()
 
     const activeContract = apprentice.contracts[0]
-    const hasJourney = activeContract?.tsfMapping.length > 0
+    const hasJourney = (activeContract?.tsfMapping?.length ?? 0) > 0
 
     return (
         <div className="container mx-auto py-12 px-4 max-w-6xl space-y-12">
@@ -79,7 +79,7 @@ export default async function ApprenticeProfilePage({ params }: { params: Promis
                 {activeContract && (
                     <div className="flex flex-col items-center md:items-end gap-3 px-8 py-4 bg-slate-50 rounded-[2rem]">
                         <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Contrat Actif</div>
-                        <div className="text-lg font-black text-slate-900">{activeContract.referentiel.codeRncp}</div>
+                        <div className="text-lg font-black text-slate-900">{activeContract.referentiel?.codeRncp || "Inconnu"}</div>
                         <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-white px-3 py-1.5 rounded-full shadow-sm">
                             <Calendar size={12} />
                             {new Date(activeContract.startDate).toLocaleDateString()}
@@ -141,9 +141,11 @@ export default async function ApprenticeProfilePage({ params }: { params: Promis
                                         </div>
                                     </div>
 
-                                    <Button variant="outline" className="w-full h-14 rounded-2xl border-2 border-slate-100 font-bold hover:bg-slate-50 transition-all">
-                                        Consulter le Tableau de Suivi Complet
-                                    </Button>
+                                    <Link href={`/admin/users/${apprentice.id}/tsf`} className="w-full">
+                                        <Button variant="outline" className="w-full h-14 rounded-2xl border-2 border-slate-100 font-bold hover:bg-slate-50 transition-all">
+                                            Consulter le Tableau de Suivi Complet
+                                        </Button>
+                                    </Link>
                                 </div>
                             ) : (
                                 <div className="py-12 text-center space-y-6">
@@ -157,9 +159,11 @@ export default async function ApprenticeProfilePage({ params }: { params: Promis
 
                                     <JourneyGenerator
                                         contractId={activeContract.id}
-                                        referentielTitle={activeContract.referentiel.title}
-                                        blocCount={activeContract.referentiel._count.blocs}
-                                        durationMonths={Math.ceil((new Date(activeContract.endDate).getTime() - new Date(activeContract.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30))}
+                                        referentielTitle={activeContract.referentiel?.title || "N/A"}
+                                        blocCount={activeContract.referentiel?._count?.blocs || 0}
+                                        durationMonths={activeContract.startDate && activeContract.endDate
+                                            ? Math.ceil((new Date(activeContract.endDate).getTime() - new Date(activeContract.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30))
+                                            : 0}
                                     />
                                 </div>
                             )}

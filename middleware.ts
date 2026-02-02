@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
 
-export default auth((req) => {
+export default auth((req: any) => {
     const { nextUrl } = req
     const isLoggedIn = !!req.auth
     const userRole = req.auth?.user?.role

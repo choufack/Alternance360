@@ -31,7 +31,7 @@ export default async function OffersPage() {
                     // Let's assume for now we link to ANY ref available to the tenant.
                 ]
             },
-            select: { id: true, title: true, codeRncp: true },
+            select: { id: true, title: true, codeRncp: true, isMarketplacePack: true },
             orderBy: { title: 'asc' }
         })
     ])

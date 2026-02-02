@@ -6,6 +6,9 @@ declare module "next-auth" {
         user: {
             role: string
             tenantId: string | null
+            customRole?: any
+            isImpersonating?: boolean
+            originalUserId?: string
         } & DefaultSession["user"]
     }
 
@@ -13,6 +16,7 @@ declare module "next-auth" {
         id?: string
         role: string
         tenantId: string | null
+        customRole?: any
     }
 }
 
@@ -20,6 +24,9 @@ declare module "next-auth/jwt" {
     interface JWT {
         role: string
         tenantId: string | null
+        customRole?: any
+        isImpersonating?: boolean
+        originalUserId?: string
     }
 }
 
@@ -27,5 +34,6 @@ declare module "@auth/core/adapters" {
     interface AdapterUser extends BaseAdapterUser {
         role: string
         tenantId: string | null
+        customRole?: any
     }
 }

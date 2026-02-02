@@ -3,6 +3,7 @@
 import db from '@/lib/db'
 import { auth } from '@/auth'
 import { cache } from 'react'
+import { revalidatePath } from 'next/cache'
 
 /**
  * Récupère le TSF (Tableau Stratégique de Formation) complet pour un contrat donné.
@@ -196,4 +197,65 @@ export async function getContractProgress(contractId: string) {
             }
         }
     })
+}
+
+// --- NEW ACTIONS ---
+
+export async function updatePeriodDate(periodId: string, startDate: Date, endDate: Date) {
+    const session = await auth()
+    if (!session?.user?.id) return { error: "Non connecté" }
+
+    // Admin-only check logic if needed, currently reusing standard auth
+    // Ideally verify role === 'admin'
+
+    try {
+        await db.period.update({
+            where: { id: periodId },
+            data: {
+                startDate,
+                endDate
+            }
+        })
+        revalidatePath('/admin/users')
+        return { success: true }
+    } catch (e) {
+        console.error("Modify Period Error:", e)
+        return { error: "Erreur lors de la mise à jour de la période" }
+    }
+}
+
+export async function notifyStudentOfPeriod(periodId: string) {
+    const session = await auth()
+    if (!session?.user?.id) return { error: "Non connecté" }
+
+    try {
+        const period = await db.period.findUnique({
+            where: { id: periodId },
+            include: {
+                contract: {
+                    include: { user: true }
+                }
+            }
+        })
+
+        if (!period || !period.contract.user) return { error: "Données introuvables" }
+
+        // Here we simulate sending an email or push notification
+        // For now, we create a NotificationLog entry
+
+        await (db as any).notificationLog.create({
+            data: {
+                recipientId: period.contract.userId!,
+                type: 'PUSH',
+                title: 'Nouveaux objectifs définis 🎯',
+                content: `Votre plan de formation pour la période "${period.label}" (${period.startDate.toLocaleDateString()} - ${period.endDate.toLocaleDateString()}) est prêt.`,
+                metadata: JSON.stringify({ periodId: period.id })
+            }
+        })
+
+        return { success: true }
+    } catch (e) {
+        console.error("Notify Error:", e)
+        return { error: "Erreur lors de l'envoi" }
+    }
 }

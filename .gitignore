@@ -41,3 +41,7 @@ yarn-error.log*
 
 # uploads
 /public/uploads
+
+# large files
+*.xml
+*.db

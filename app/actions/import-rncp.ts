@@ -61,8 +61,8 @@ export async function importRNCP(prevState: ActionState, formData: FormData): Pr
             `
 
             try {
-                const { generateContent } = await import('@/lib/ai')
-                const aiResponse = await generateContent(prompt)
+                const { generateText } = await import('@/lib/ai')
+                const aiResponse = await generateText(prompt)
 
                 const cleanJson = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim()
                 parsedData = RNCPSchema.parse(JSON.parse(cleanJson))

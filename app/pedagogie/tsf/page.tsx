@@ -58,13 +58,13 @@ export default async function TSFPage() {
         label: p.label
     }))
 
-    const competences = contract.referentiel.blocs.flatMap(bloc =>
+    const competences = contract.referentiel?.blocs?.flatMap(bloc =>
         bloc.competences.map(comp => ({
             id: comp.id,
             description: comp.description,
             bloc_title: bloc.title
         }))
-    )
+    ) || []
 
     const mappings = contract.tsfMapping.map(m => ({
         period_id: m.periodId || '',

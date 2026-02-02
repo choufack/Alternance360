@@ -19,7 +19,7 @@ export async function generateTSF(contractId: string) {
  * Internal logic for TSF Generation.
  * Can be called by API routes or background tasks.
  */
-export async function internalGenerateTSF(contractId: string) {
+export async function internalGenerateTSF(contractId: string, overrideStartDate?: Date, overrideEndDate?: Date) {
     try {
         // 1. Fetch Contract
         const contract = await db.contract.findUnique({
@@ -30,8 +30,8 @@ export async function internalGenerateTSF(contractId: string) {
         if (!contract) throw new Error('Contract not found')
 
         // 2. Generate Periods (Algorithm: 6 months slices)
-        const startDate = new Date(contract.startDate)
-        const endDate = new Date(contract.endDate)
+        const startDate = overrideStartDate || new Date(contract.startDate)
+        const endDate = overrideEndDate || new Date(contract.endDate)
         const durationMonths = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth())
 
         const nbPeriods = Math.ceil(durationMonths / 6)

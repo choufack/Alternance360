@@ -5,7 +5,7 @@ import { auth } from '@/auth'
 import db from '@/lib/db'
 import { z } from 'zod'
 import { syncMilestones } from '../actions/monitoring'
-import { generateContent } from '@/lib/ai'
+import { generateText } from '@/lib/ai'
 import { PERMISSIONS, requirePermission } from '@/lib/permissions'
 
 // --- Users ---
@@ -381,7 +381,7 @@ export async function generateCriteriaWithAI(rncpTitle: string, blocTitle: strin
     `
 
     try {
-        const result = await generateContent(prompt)
+        const result = await generateText(prompt)
         const jsonMatch = result.match(/\[[\s\S]*\]/)
         const criteria = JSON.parse(jsonMatch ? jsonMatch[0] : result)
         return { success: true, criteria }
@@ -458,30 +458,77 @@ export async function initializeApprenticeJourney(contractId: string, periodType
             await tx.tSFMapping.deleteMany({ where: { contractId } })
             await tx.period.deleteMany({ where: { contractId } })
 
-            // 3. Create Period Records
-            const createdPeriods = []
-            for (let i = 0; i < numPeriods; i++) {
-                const pStart = new Date(start)
-                pStart.setMonth(start.getMonth() + (i * periodMonths))
+            // 3. Create Period Records with Smart Logic
 
-                const pEnd = new Date(pStart)
-                pEnd.setMonth(pStart.getMonth() + periodMonths)
+            // Helper to get end of month
+            const getEndOfMonth = (date: Date) => {
+                const d = new Date(date)
+                d.setMonth(d.getMonth() + 1)
+                d.setDate(0)
+                d.setHours(23, 59, 59)
+                return d
+            }
+
+            const createdPeriods = []
+            let currentStart = new Date(start)
+
+            for (let i = 0; i < numPeriods; i++) {
+                let pEnd = new Date(currentStart)
+
+                // Smart Semester Logic
+                if (periodType === 'SEMESTER') {
+                    const month = currentStart.getMonth() // 0-11
+
+                    // If starting in Aug/Sept/Oct/Nov/Dec -> End Jan 31
+                    if (month >= 7 || month <= 0) {
+                        // Target next January
+                        if (month <= 0) {
+                            pEnd.setMonth(0) // Jan
+                            pEnd.setDate(31)
+                        } else {
+                            pEnd.setFullYear(pEnd.getFullYear() + 1)
+                            pEnd.setMonth(0) // Jan (next year)
+                            pEnd.setDate(31)
+                        }
+                    }
+                    // If starting in Feb-Jun -> End Aug 31
+                    else {
+                        pEnd.setMonth(7) // Aug
+                        pEnd.setDate(31)
+                    }
+                } else {
+                    // Standard Logic for Trimester/Month
+                    pEnd.setMonth(currentStart.getMonth() + periodMonths)
+                    pEnd = getEndOfMonth(pEnd)
+                }
+
+                // Cap at contract end
                 if (pEnd > end) pEnd.setTime(end.getTime())
+
+                // Safety: if start >= end, force at least 1 day or skip
+                if (currentStart >= pEnd) {
+                    pEnd = new Date(currentStart)
+                    pEnd.setDate(pEnd.getDate() + 30)
+                }
 
                 const period = await tx.period.create({
                     data: {
                         contractId,
                         label: `${periodType === 'SEMESTER' ? 'Semestre' : periodType === 'TRIMESTER' ? 'Trimestre' : 'Mois'} ${i + 1}`,
                         orderIndex: i,
-                        startDate: pStart,
+                        startDate: currentStart,
                         endDate: pEnd
                     }
                 })
                 createdPeriods.push(period)
+
+                // Next start is day after current end
+                currentStart = new Date(pEnd)
+                currentStart.setDate(currentStart.getDate() + 1)
             }
 
             // 4. Distribute Blocs & Competences
-            const blocs = contract.referentiel.blocs
+            const blocs = contract.referentiel!.blocs
             for (let i = 0; i < blocs.length; i++) {
                 const bloc = blocs[i]
                 const periodIndex = Math.floor(i * numPeriods / blocs.length)

@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Send, MessageSquare } from 'lucide-react'
 import { addComment, getComments } from '@/app/actions/comments'
-import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface Comment {
     id: string
@@ -63,7 +62,8 @@ export function CommentThread({ proofId, currentUserId }: CommentThreadProps) {
         const res = await addComment(proofId, newComment)
         if (res.success && res.comment) {
             // Replace optimistic with real one
-            setComments(prev => prev.map(c => c.id === tempId ? res.comment! : c))
+            const serverComment = res.comment as unknown as Comment
+            setComments(prev => prev.map(c => c.id === tempId ? serverComment : c))
         } else {
             // Revert on error
             setComments(prev => prev.filter(c => c.id !== tempId))
@@ -87,7 +87,7 @@ export function CommentThread({ proofId, currentUserId }: CommentThreadProps) {
                 <Button variant="ghost" size="xs" onClick={() => setIsOpen(false)} className="h-6 text-xs text-slate-400">Masquer</Button>
             </div>
 
-            <ScrollArea className="h-[200px] w-full rounded-md border p-4 bg-slate-50 mb-4">
+            <div className="h-[200px] w-full rounded-md border p-4 bg-slate-50 mb-4 overflow-auto no-scrollbar">
                 {comments.length === 0 ? (
                     <p className="text-xs text-slate-400 text-center py-8">Aucun échange pour le moment.</p>
                 ) : (
@@ -108,7 +108,7 @@ export function CommentThread({ proofId, currentUserId }: CommentThreadProps) {
                         })}
                     </div>
                 )}
-            </ScrollArea>
+            </div>
 
             <div className="flex gap-2">
                 <Textarea

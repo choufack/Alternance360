@@ -36,7 +36,7 @@ type Competence = {
 type Block = {
     id: string
     title: string
-    code: string | null
+    code?: string | null
     competences: Competence[]
 }
 

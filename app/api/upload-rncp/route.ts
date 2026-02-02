@@ -53,36 +53,39 @@ export async function POST(req: NextRequest) {
             const rncpCode = codeMatch ? codeMatch[0] : "INCONNU"
 
             const prompt = `
-            Voici les données brutes d'un référentiel (format XML ou JSON).
-            Code probable : ${rncpCode}.
+            En tant qu'expert en ingénierie pédagogique pour l'apprentissage, transforme ces données brutes de France Compétences en un référentiel de compétences structuré et professionnel.
             
-            Utilise ces informations et tes connaissances pour générer une structure propre en Blocs > Compétences > Indicateurs au format JSON.
-            
-            Le format de sortie DOIT être une structure JSON valide correspondant strictement à ce schéma Zod :
+            IMPORTANT : Analyse particulièrement les "Unités Pour la Compétence" (UPC) et les "Modalités d'évaluation" pour en extraire des critères de réussite précis.
+
+            FORMAT DE SORTIE (JSON STRICT) :
             {
-                code_rncp: string,
-                title: string,
-                blocs: [
+                "code_rncp": "${rncpCode}",
+                "title": "Titre exact de la certification",
+                "blocs": [
                     {
-                        title: string,
-                        competences: [
+                        "title": "Titre du Bloc",
+                        "competences": [
                             {
-                                description: string,
-                                indicateurs: [ { label: string } ] (optionnel)
+                                "description": "Description de la compétence (ex: UPC 1 - Intitulé)",
+                                "indicateurs": [ 
+                                    { "label": "Indicateur de performance observable 1" },
+                                    { "label": "Indicateur de performance observable 2" },
+                                    { "label": "Indicateur de performance observable 3" }
+                                ]
                             }
                         ]
                     }
                 ]
             }
 
-            Données brutes :
+            DONNÉES BRUTES :
             ${promptContext}
             `
 
             try {
                 // Dynamic import
-                const { generateContent } = await import('@/lib/ai')
-                const aiResponse = await generateContent(prompt)
+                const { generateText } = await import('@/lib/ai')
+                const aiResponse = await generateText(prompt)
                 const cleanJson = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim()
                 parsedData = RNCPSchema.parse(JSON.parse(cleanJson))
             } catch (err: any) {
