@@ -1,42 +1,46 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { PenTool, Loader2 } from 'lucide-react'
-import { SignatureCanvas } from '@/components/ui/signature-canvas'
+import { PenTool, Loader2, Save } from 'lucide-react'
+import { SignatureCanvas, type SignatureCanvasHandle } from '@/components/ui/signature-canvas'
 import { uploadSignature } from '@/app/tutor/actions'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 
 export function SignatureModal() {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
-    const { toast } = useToast()
+    const signatureRef = useRef<SignatureCanvasHandle>(null)
 
-    const handleSave = async (blob: Blob) => {
+    const handleSave = async () => {
+        const signatureData = signatureRef.current?.toDataURL()
+        if (!signatureData || signatureData.length < 1000) {
+            toast.error("Veuillez signer avant d'enregistrer")
+            return
+        }
+
         setLoading(true)
-        const formData = new FormData()
-        // Convert Blob to File
-        const file = new File([blob], "signature.png", { type: "image/png" })
-        formData.append('signature', file)
+        try {
+            const formData = new FormData()
+            // Convert Base64 to Blob
+            const response = await fetch(signatureData)
+            const blob = await response.blob()
+            const file = new File([blob], "signature.png", { type: "image/png" })
+            formData.append('signature', file)
 
-        const res = await uploadSignature(formData)
-        setLoading(false)
+            const res = await uploadSignature(formData)
 
-        if (res?.success) {
-            setOpen(false)
-            toast({
-                title: "Bilan signé !",
-                description: "La signature a été enregistrée avec succès.",
-                variant: "default",
-                className: "bg-emerald-50 border-emerald-200 text-emerald-800"
-            })
-        } else {
-            toast({
-                title: "Erreur",
-                description: "Impossible d'enregistrer la signature.",
-                variant: "destructive"
-            })
+            if (res && !('error' in res)) {
+                setOpen(false)
+                toast.success("Bilan signé avec succès !")
+            } else {
+                toast.error("Impossible d'enregistrer la signature.")
+            }
+        } catch (error) {
+            toast.error("Une erreur est survenue")
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -48,21 +52,39 @@ export function SignatureModal() {
                     Signer le Bilan
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md bg-white rounded-3xl">
                 <DialogHeader>
                     <DialogTitle className="text-xl font-black text-slate-900 text-center">
                         Signature du Bilan
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="py-4">
+                <div className="py-4 space-y-4">
                     {loading ? (
                         <div className="h-[200px] flex flex-col items-center justify-center text-indigo-600">
                             <Loader2 className="h-10 w-10 animate-spin mb-4" />
                             <p className="font-bold">Enregistrement...</p>
                         </div>
                     ) : (
-                        <SignatureCanvas onSave={handleSave} />
+                        <>
+                            <SignatureCanvas ref={signatureRef} width={400} height={200} />
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => signatureRef.current?.clear()}
+                                    className="flex-1 rounded-xl"
+                                >
+                                    Effacer
+                                </Button>
+                                <Button
+                                    onClick={handleSave}
+                                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl"
+                                >
+                                    <Save className="w-4 h-4 mr-2" />
+                                    Enregistrer
+                                </Button>
+                            </div>
+                        </>
                     )}
                 </div>
             </DialogContent>

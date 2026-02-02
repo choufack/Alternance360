@@ -37,9 +37,26 @@ export default function DemoPage() {
     ]
 
     const mockCompetences = [
-        { id: "c1", description: "Maquetter une application", bloc_title: "Bloc 1" },
+        {
+            id: "c1",
+            description: "Maquetter une application",
+            bloc_title: "Bloc 1",
+            items: [
+                { id: "i1", label: "Respect des normes d'accessibilité" },
+                { id: "i2", label: "Utilisation des composants Figma" }
+            ]
+        },
         { id: "c2", description: "Réaliser une interface statique", bloc_title: "Bloc 1" },
-        { id: "c3", description: "Développer une interface dynamique", bloc_title: "Bloc 1" },
+        {
+            id: "c3",
+            description: "Développer une interface dynamique",
+            bloc_title: "Bloc 1",
+            items: [
+                { id: "i3", label: "Gestion des états (State Management)" },
+                { id: "i4", label: "Connexion API REST" },
+                { id: "i5", label: "Tests unitaires" }
+            ]
+        },
         { id: "c4", description: "Créer une base de données", bloc_title: "Bloc 2" },
     ]
 

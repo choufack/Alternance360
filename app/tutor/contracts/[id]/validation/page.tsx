@@ -61,7 +61,7 @@ export default async function ContractValidationPage({ params }: { params: { id:
                             </div>
                             <div>
                                 <p className="text-sm text-slate-400 font-bold uppercase">Référentiel</p>
-                                <p className="font-bold text-slate-900">{contract.referentiel.title}</p>
+                                <p className="font-bold text-slate-900">{contract.referentiel?.title || "N/A"}</p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>

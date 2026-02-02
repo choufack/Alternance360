@@ -18,8 +18,15 @@ import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { NewReferentielButton, ToggleVisibilityButton } from "@/components/super-admin/referentiel-actions"
 
-export default async function GlobalReferentielsPage() {
-    const referentiels = await getGlobalReferentiels()
+import { ReferentielSearch } from "@/components/super-admin/referentiel-search"
+
+export default async function GlobalReferentielsPage({
+    searchParams
+}: {
+    searchParams: Promise<{ q?: string }>
+}) {
+    const { q } = await searchParams
+    const referentiels = await getGlobalReferentiels(q)
 
     return (
         <div className="space-y-10">
@@ -37,14 +44,7 @@ export default async function GlobalReferentielsPage() {
             </header>
 
             <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Rechercher un code RNCP, un titre..."
-                        className="w-full h-14 pl-12 pr-4 bg-white border border-slate-100 rounded-2xl font-medium focus:outline-none focus:ring-4 focus:ring-indigo-600/5 transition-all"
-                    />
-                </div>
+                <ReferentielSearch />
                 <div className="flex bg-white p-1 rounded-2xl border border-slate-100">
                     <button className="px-6 py-2 rounded-xl bg-slate-900 text-white font-bold text-sm">Tous</button>
                     <button className="px-6 py-2 rounded-xl text-slate-500 font-bold text-sm">Génériques</button>

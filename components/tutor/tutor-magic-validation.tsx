@@ -6,7 +6,7 @@ import { CheckCircle2, FileText, Loader2 } from 'lucide-react'
 import { validateProof } from '@/app/actions/validate-proof'
 import { toast } from 'sonner'
 
-export function TutorMagicValidation({ proofs, contractId }: { proofs: any[], contractId: string }) {
+export function TutorMagicValidation({ proofs, contractId, apprentice }: { proofs: any[], contractId: string, apprentice: any }) {
     const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({})
     const [validatedSet, setValidatedSet] = useState<Set<string>>(new Set())
 

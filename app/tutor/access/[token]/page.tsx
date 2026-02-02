@@ -7,14 +7,22 @@ import { AlertTriangle, Info } from 'lucide-react'
 import { TutorMagicValidation } from '@/components/tutor/tutor-magic-validation'
 import db from '@/lib/db'
 
-export default async function TutorAccessPage({ params }: { params: { token: string } }) {
-    const data = await verifyMagicToken(params.token)
+export default async function TutorAccessPage({ params }: { params: Promise<{ token: string }> }) {
+    const { token } = await params
+    const data = await verifyMagicToken(token)
 
     if (!data) {
         return notFound()
     }
 
     const { tutor, contract, apprentice } = data
+    if (!apprentice) return notFound()
+
+    const proofs = await db.proof.findMany({
+        where: { userId: apprentice.id, status: 'PENDING' },
+        include: { competence: true },
+        orderBy: { createdAt: 'desc' }
+    })
 
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-8">
@@ -77,12 +85,9 @@ export default async function TutorAccessPage({ params }: { params: { token: str
                                 </p>
 
                                 <TutorMagicValidation
-                                    proofs={await db.proof.findMany({
-                                        where: { userId: apprentice.id, status: 'PENDING' },
-                                        include: { competence: true },
-                                        orderBy: { createdAt: 'desc' }
-                                    })}
+                                    proofs={proofs}
                                     contractId={contract.id}
+                                    apprentice={apprentice}
                                 />
 
                                 <div className="mt-8 pt-6 border-t">

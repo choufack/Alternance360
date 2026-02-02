@@ -59,11 +59,11 @@ export function RemediationClient({ plan }: { plan: any }) {
 
     const actions: RemediationAction[] = plan.actions
 
-    const statusBadge = {
+    const statusBadge = ({
         DRAFT: <Badge className="bg-slate-100 text-slate-700">Brouillon</Badge>,
         IN_PROGRESS: <Badge className="bg-blue-100 text-blue-700">En cours</Badge>,
         RESOLVED: <Badge className="bg-green-100 text-green-700">Résolu</Badge>
-    }[plan.status]
+    } as Record<string, React.ReactNode>)[plan.status as string] || <Badge>Inconnu</Badge>
 
     return (
         <Card className="shadow-lg border-l-4 border-l-amber-400">

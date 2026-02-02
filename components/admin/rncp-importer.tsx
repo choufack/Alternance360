@@ -1,18 +1,19 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 // import { uploadRNCP, type UploadState } from '@/app/actions/upload-rncp'
 export type UploadState = {
     message: string
     error: boolean
     details?: string
 }
-import { fetchRNCPAction, enrichRNCPAction, saveRNCPAction } from '@/app/actions/import-rncp-bridge'
+import { fetchRNCPAction, enrichRNCPAction, saveRNCPAction, getAIStatusAction } from '@/app/actions/import-rncp-bridge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Upload, FileJson, CheckCircle, AlertCircle, Link, KeyRound, Sparkles, Database, Loader2 } from 'lucide-react'
+import { Upload, FileJson, CheckCircle, AlertCircle, Link, KeyRound, Sparkles, Database, Loader2, Zap, ZapOff, Cpu } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from '@/components/ui/badge'
 
 const initialState: UploadState = {
     message: '',
@@ -31,8 +32,14 @@ export function RNCPImporter({ tenantId }: { tenantId?: string }) {
     const [bridgeError, setBridgeError] = useState("")
     const [apiData, setApiData] = useState<any>(null)
     const [structuredData, setStructuredData] = useState<any>(null)
+    const [aiStatus, setAiStatus] = useState<{ configured: boolean, model?: string } | null>(null)
+
+    useEffect(() => {
+        getAIStatusAction().then(res => setAiStatus(res))
+    }, [])
 
     async function handleFileImport(event: React.FormEvent<HTMLFormElement>) {
+        // ... (omitted for brevity in this replacement chunk, but I'll make sure it's accurate)
         event.preventDefault()
         const formData = new FormData(event.currentTarget)
 
@@ -247,6 +254,35 @@ export function RNCPImporter({ tenantId }: { tenantId?: string }) {
                     </TabsContent>
                 </Tabs>
             </CardContent>
+            <CardFooter className="flex flex-col border-t bg-slate-50/50 p-6 rounded-b-xl gap-4">
+                <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                        {aiStatus?.configured ? (
+                            <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+                        ) : (
+                            <ZapOff className="w-4 h-4 text-slate-400" />
+                        )}
+                        <span className="text-sm font-bold text-slate-700">Moteur IA</span>
+                    </div>
+                    {aiStatus ? (
+                        <Badge variant={aiStatus.configured ? "default" : "outline"} className={aiStatus.configured ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : "text-slate-400 border-slate-200"}>
+                            {aiStatus.configured ? `Opérationnel (${aiStatus.model})` : "Non configuré"}
+                        </Badge>
+                    ) : (
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-300" />
+                    )}
+                </div>
+
+                {!aiStatus?.configured && (
+                    <div className="bg-amber-50 border border-amber-100 p-3 rounded-lg flex gap-3 items-start">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="text-[11px] text-amber-800 leading-tight">
+                            <p className="font-bold mb-1">Configuration Requise</p>
+                            <p>La clé API Gemini doit être configurée par le <strong>Super Administrateur</strong> dans les <em>Paramètres Généraux</em> de la plateforme pour activer l'IA.</p>
+                        </div>
+                    </div>
+                )}
+            </CardFooter>
         </Card>
     )
 }

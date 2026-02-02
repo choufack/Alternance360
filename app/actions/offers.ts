@@ -28,7 +28,7 @@ export async function getOffers() {
     // If Super Admin, show all? Or just scoped? Usually scoped to tenant unless specific view.
     // For now, let's assume we are in the context of a CFA Admin.
     return await db.trainingOffer.findMany({
-        where: { tenantId: session.user.tenantId },
+        where: { tenantId: session.user.tenantId as string },
         include: {
             referentiel: {
                 select: { codeRncp: true, title: true }
@@ -48,7 +48,7 @@ export async function getOffersByReferentiel(referentielId: string) {
     return await db.trainingOffer.findMany({
         where: {
             referentielId,
-            tenantId: session.user.tenantId // Security scope
+            tenantId: session.user.tenantId as string // Security scope
         },
         orderBy: { startDate: 'asc' }
     })

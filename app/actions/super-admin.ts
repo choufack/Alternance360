@@ -190,11 +190,20 @@ export async function getAuditLogs() {
     })
 }
 
-export async function getGlobalReferentiels() {
+export async function getGlobalReferentiels(search?: string) {
     const session = await auth()
     if (!session || session.user.role !== 'super_admin') throw new Error('Non autorisé')
 
+    const whereClause: any = {}
+    if (search) {
+        whereClause.OR = [
+            { title: { contains: search, mode: 'insensitive' } },
+            { codeRncp: { contains: search, mode: 'insensitive' } }
+        ]
+    }
+
     return await db.referentiel.findMany({
+        where: whereClause,
         include: {
             tenant: { select: { name: true } },
             _count: { select: { blocs: true, contracts: true } }
@@ -529,6 +538,22 @@ export async function savePlatformConfig(key: string, value: string, group: stri
     return { success: true }
 }
 
+export async function deletePlatformConfig(key: string) {
+    const session = await auth()
+    if (!session || session.user?.role !== 'super_admin') throw new Error('Non autorisé')
+
+    await db.platformConfig.delete({
+        where: { key }
+    })
+
+    await logAuditEvent('SUPER_ADMIN_DELETE_CONFIG', 'PlatformConfig', key, {
+        adminId: session.user.id
+    })
+
+    revalidatePath('/super-admin/config')
+    return { success: true }
+}
+
 async function initializeDefaultConfig() {
     const defaults = [
         { key: "platform_name", value: "Alternance 360", group: "BRANDING" },
@@ -536,10 +561,17 @@ async function initializeDefaultConfig() {
         { key: "maintenance_mode", value: "false", group: "SECURITY" },
         { key: "self_registration", value: "false", group: "SECURITY" },
         { key: "audit_verbose", value: "false", group: "TECH" },
+        // AI Integration
+        { key: "openai_api_key", value: "", group: "IA", isSecret: true },
+        { key: "anthropic_api_key", value: "", group: "IA", isSecret: true },
+        { key: "gemini_api_key", value: "", group: "IA", isSecret: true },
+        // SMTP Advanced
         { key: "smtp_host", value: "smtp.sendgrid.net", group: "TECH", isSecret: true },
         { key: "smtp_user", value: "apikey", group: "TECH", isSecret: true },
-        { key: "smtp_pass", value: "", group: "TECH", isSecret: true }, // Added
-        { key: "smtp_port", value: "587", group: "TECH", isSecret: false }, // Added
+        { key: "smtp_pass", value: "", group: "TECH", isSecret: true },
+        { key: "smtp_port", value: "587", group: "TECH", isSecret: false },
+        { key: "smtp_from_name", value: "Alternance 360", group: "TECH", isSecret: false },
+        { key: "smtp_from_email", value: "noreply@alternance360.com", group: "TECH", isSecret: false },
     ]
 
     for (const def of defaults) {

@@ -2,7 +2,7 @@
 
 import db from '@/lib/db'
 import { auth } from '@/auth'
-import { generateContent } from '@/lib/ai'
+import { generateText } from '@/lib/ai'
 import { differenceInDays, addDays } from 'date-fns'
 
 export type InactivityStat = {
@@ -288,7 +288,7 @@ export async function getGovernanceInsights(filters?: GovernanceFilters) {
     `
 
     try {
-        const insight = await generateContent(prompt)
+        const insight = await generateText(prompt)
         return insight.trim()
     } catch (e) {
         return "Analyse indisponible pour le moment."

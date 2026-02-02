@@ -8,36 +8,39 @@ datasource db {
 }
 
 model Tenant {
-  id               String           @id @default(uuid())
+  id               String            @id @default(uuid())
   name             String
   logoUrl          String?
-  primaryColor     String?          @default("#4f46e5")
-  siret            String?          @unique
+  primaryColor     String?           @default("#4f46e5")
+  siret            String?           @unique
   address          String?
   ndaNumber        String?
   uaiCode          String?
-  qualiopiCert     Boolean          @default(false)
+  qualiopiCert     Boolean           @default(false)
   legalRep         String?
   contactEmail     String?
   contactPhone     String?
   website          String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   webhookUrl       String?
   webhookSecret    String?
+  apiKeys          ApiKey[]
   auditSessions    AuditSession[]
   blocsCompetences BlocCompetence[]
   competences      Competence[]
   contracts        Contract[]
   livrets          Livret[]
   referentiels     Referentiel[]
+  remediationPlans RemediationPlan[]
   roles            Role[]
   subscription     Subscription?
   supportTickets   SupportTicket[]
   trainingOffers   TrainingOffer[]
+
   users            User[]
-  apiKeys          ApiKey[]
-  remediationPlans RemediationPlan[]
+  filieres         Filiere[]
+  promotions       Promotion[]
 }
 
 model User {
@@ -57,22 +60,24 @@ model User {
   tenantId             String?
   roleId               String?
   activities           Activity[]
-  contractsManaged     Contract[]             @relation("FormateurContracts")
-  contractsTutored     Contract[]             @relation("TutorContracts")
   contracts            Contract[]             @relation("ApprenticeContracts")
-  magicTokens          MagicToken[]
-  evaluationsReceived  EvaluationIndicateur[] @relation("ApprenticeEvaluations")
+  contractsTutored     Contract[]             @relation("TutorContracts")
+  contractsManaged     Contract[]             @relation("FormateurContracts")
   evaluationsValidated EvaluationIndicateur[] @relation("TutorEvaluations")
+  evaluationsReceived  EvaluationIndicateur[] @relation("ApprenticeEvaluations")
   reportsGenerated     HistoricalReport[]
   initialAssessments   InitialAssessment[]
+  magicTokens          MagicToken[]
   notifications        NotificationLog[]
   positionings         Positioning[]
   proofs               Proof[]
   comments             ProofComment[]
   ticketsAssigned      SupportTicket[]        @relation("TicketAssignee")
   ticketsCreated       TicketMessage[]
-  customRole           Role?                  @relation(fields: [roleId], references: [id])
   tenant               Tenant?                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customRole           Role?                  @relation(fields: [roleId], references: [id])
+  promotionId          String?
+  promotion            Promotion?             @relation(fields: [promotionId], references: [id])
 }
 
 model Referentiel {
@@ -80,6 +85,7 @@ model Referentiel {
   codeRncp           String
   title              String
   isGlobal           Boolean          @default(false)
+  isMarketplacePack  Boolean          @default(false)
   createdAt          DateTime         @default(now())
   author             String?
   downloadCount      Int              @default(0)
@@ -89,7 +95,9 @@ model Referentiel {
   blocs              BlocCompetence[]
   contracts          Contract[]
   tenant             Tenant?          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   trainingOffers     TrainingOffer[]
+  filieres           Filiere[]
 }
 
 model BlocCompetence {
@@ -99,9 +107,38 @@ model BlocCompetence {
   createdAt     DateTime     @default(now())
   tenantId      String?
   referentielId String
-  referentiel   Referentiel  @relation(fields: [referentielId], references: [id], onDelete: Cascade)
   tenant        Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  referentiel   Referentiel  @relation(fields: [referentielId], references: [id], onDelete: Cascade)
+
   competences   Competence[]
+}
+
+model Filiere {
+  id            String      @id @default(uuid())
+  name          String
+  description   String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  tenantId      String
+  referentielId String?
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  referentiel   Referentiel? @relation(fields: [referentielId], references: [id])
+  promotions    Promotion[]
+}
+
+model Promotion {
+  id            String    @id @default(uuid())
+  name          String
+  year          Int
+  startDate     DateTime
+  endDate       DateTime
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  tenantId      String
+  filiereId     String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  filiere       Filiere   @relation(fields: [filiereId], references: [id], onDelete: Cascade)
+  users         User[]
 }
 
 model Competence {
@@ -110,8 +147,8 @@ model Competence {
   createdAt    DateTime       @default(now())
   tenantId     String?
   blocId       String
-  bloc         BlocCompetence @relation(fields: [blocId], references: [id], onDelete: Cascade)
   tenant       Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bloc         BlocCompetence @relation(fields: [blocId], references: [id], onDelete: Cascade)
   indicateurs  Indicateur[]
   positionings Positioning[]
   proofs       Proof[]
@@ -124,6 +161,7 @@ model Indicateur {
   createdAt    DateTime               @default(now())
   competenceId String
   evaluations  EvaluationIndicateur[]
+  items        EvaluationItem[]
   competence   Competence             @relation(fields: [competenceId], references: [id], onDelete: Cascade)
 }
 
@@ -141,14 +179,25 @@ model EvaluationIndicateur {
   indicateurId  String
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
-  indicateur    Indicateur @relation(fields: [indicateurId], references: [id], onDelete: Cascade)
-  contract      Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  apprentice    User?      @relation("ApprenticeEvaluations", fields: [apprenticeId], references: [id])
+  selectedItems String?
   validator     User?      @relation("TutorEvaluations", fields: [validatorId], references: [id])
+  apprentice    User?      @relation("ApprenticeEvaluations", fields: [apprenticeId], references: [id])
+  contract      Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  indicateur    Indicateur @relation(fields: [indicateurId], references: [id], onDelete: Cascade)
 
   @@unique([contractId, indicateurId])
   @@index([apprenticeId])
   @@index([validatorId])
+  @@index([indicateurId])
+}
+
+model EvaluationItem {
+  id           String     @id @default(uuid())
+  label        String
+  orderIndex   Int        @default(0)
+  indicateurId String
+  indicateur   Indicateur @relation(fields: [indicateurId], references: [id], onDelete: Cascade)
+
   @@index([indicateurId])
 }
 
@@ -172,20 +221,20 @@ model Contract {
   changeLog          String?
   externalId         String?                @unique
   attendance         Attendance[]
-  formateur          User?                  @relation("FormateurContracts", fields: [formateurId], references: [id])
-  tutor              User?                  @relation("TutorContracts", fields: [tutorId], references: [id])
-  user               User?                  @relation("ApprenticeContracts", fields: [userId], references: [id], onDelete: Cascade)
-  referentiel        Referentiel?           @relation(fields: [referentielId], references: [id], onDelete: Cascade)
   tenant             Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  referentiel        Referentiel?           @relation(fields: [referentielId], references: [id], onDelete: Cascade)
+  user               User?                  @relation("ApprenticeContracts", fields: [userId], references: [id], onDelete: Cascade)
+  tutor              User?                  @relation("TutorContracts", fields: [tutorId], references: [id])
+  formateur          User?                  @relation("FormateurContracts", fields: [formateurId], references: [id])
   tsfEvaluations     EvaluationIndicateur[]
   reports            HistoricalReport[]
   initialAssessments InitialAssessment[]
   livrets            Livret[]
+  magicTokens        MagicToken[]
   milestones         Milestone[]
   periodes           Period[]
-  tsfMapping         TSFMapping[]
-  magicTokens        MagicToken[]
   remediationPlans   RemediationPlan[]
+  tsfMapping         TSFMapping[]
 }
 
 model Period {
@@ -215,9 +264,9 @@ model TSFMapping {
   blocTitle             String?
   competenceDescription String?
   versionId             String?
-  period                Period?    @relation(fields: [periodId], references: [id], onDelete: Cascade)
-  competence            Competence @relation(fields: [competenceId], references: [id], onDelete: Cascade)
   contract              Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  competence            Competence @relation(fields: [competenceId], references: [id], onDelete: Cascade)
+  period                Period?    @relation(fields: [periodId], references: [id], onDelete: Cascade)
 
   @@unique([contractId, competenceId, periodId])
 }
@@ -231,8 +280,8 @@ model HistoricalReport {
   verificationHash String
   contractId       String
   authorId         String?
-  author           User?    @relation(fields: [authorId], references: [id])
   contract         Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  author           User?    @relation(fields: [authorId], references: [id])
 }
 
 model InitialAssessment {
@@ -244,8 +293,8 @@ model InitialAssessment {
   userId       String
   contractId   String?
   validatorId  String?
-  contract     Contract?     @relation(fields: [contractId], references: [id], onDelete: Cascade)
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contract     Contract?     @relation(fields: [contractId], references: [id], onDelete: Cascade)
   positionings Positioning[]
 }
 
@@ -257,9 +306,9 @@ model Positioning {
   assessmentId String?
   userId       String
   competenceId String
-  competence   Competence         @relation(fields: [competenceId], references: [id], onDelete: Cascade)
-  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   assessment   InitialAssessment? @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  competence   Competence         @relation(fields: [competenceId], references: [id], onDelete: Cascade)
 }
 
 model Proof {
@@ -273,8 +322,8 @@ model Proof {
   createdAt    DateTime       @default(now())
   userId       String
   competenceId String?
-  competence   Competence?    @relation(fields: [competenceId], references: [id])
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  competence   Competence?    @relation(fields: [competenceId], references: [id])
   comments     ProofComment[]
 }
 
@@ -284,8 +333,8 @@ model ProofComment {
   createdAt DateTime @default(now())
   proofId   String
   authorId  String
-  author    User     @relation(fields: [authorId], references: [id])
   proof     Proof    @relation(fields: [proofId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
 }
 
 model Milestone {
@@ -334,25 +383,22 @@ model Activity {
 }
 
 model Livret {
-  id          String   @id @default(uuid())
-  documentId  String   @unique
-  filePath    String
-  status      String   @default("GENERATED")
-  generatedAt DateTime @default(now())
-  signedAt    DateTime?
-  contractId  String
-  tenantId    String
-  
-  // Tripartite Signatures
-  apprenticeSignedAt      DateTime?
+  id                      String    @id @default(uuid())
+  documentId              String    @unique
+  filePath                String
+  status                  String    @default("GENERATED")
+  generatedAt             DateTime  @default(now())
+  signedAt                DateTime?
+  contractId              String
+  tenantId                String
   apprenticeSignatureData String?
-  tutorSignedAt           DateTime?
-  tutorSignatureData      String?
-  cfaSignedAt             DateTime?
+  apprenticeSignedAt      DateTime?
   cfaSignatureData        String?
-  
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
-  contract    Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  cfaSignedAt             DateTime?
+  tutorSignatureData      String?
+  tutorSignedAt           DateTime?
+  contract                Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  tenant                  Tenant    @relation(fields: [tenantId], references: [id])
 }
 
 model Lead {
@@ -384,8 +430,8 @@ model TrainingOffer {
   tenantId      String
   referentielId String
   leads         Lead[]
-  referentiel   Referentiel @relation(fields: [referentielId], references: [id], onDelete: Cascade)
   tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  referentiel   Referentiel @relation(fields: [referentielId], references: [id], onDelete: Cascade)
 }
 
 model AuditLog {
@@ -490,8 +536,8 @@ model SupportTicket {
   updatedAt    DateTime        @updatedAt
   tenantId     String
   assignedToId String?
-  assignedTo   User?           @relation("TicketAssignee", fields: [assignedToId], references: [id])
   tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedTo   User?           @relation("TicketAssignee", fields: [assignedToId], references: [id])
   messages     TicketMessage[]
 }
 
@@ -501,8 +547,8 @@ model TicketMessage {
   createdAt DateTime      @default(now())
   ticketId  String
   authorId  String
-  author    User          @relation(fields: [authorId], references: [id])
   ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author    User          @relation(fields: [authorId], references: [id])
 }
 
 model ApiKey {
@@ -513,9 +559,8 @@ model ApiKey {
   lastUsed  DateTime?
   revokedAt DateTime?
   createdAt DateTime  @default(now())
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model MagicToken {
@@ -526,9 +571,8 @@ model MagicToken {
   contractId String
   userId     String
   createdAt  DateTime @default(now())
-
-  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
 }
 
 model RemediationPlan {
@@ -541,7 +585,6 @@ model RemediationPlan {
   contractId    String
   createdById   String?
   tenantId      String
-
-  contract      Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
   tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contract      Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
 }

@@ -29,6 +29,8 @@ const navigation = [
     { name: 'Suivi Apprentis', href: '/admin/suivi', icon: GraduationCap },
     { name: 'Atelier', href: '/admin/referentiels', icon: Wrench },
     { name: 'Offres de Formation', href: '/admin/offres', icon: Briefcase },
+    { name: 'Filières', href: '/admin/filieres', icon: Store },
+    { name: 'Promotions', href: '/admin/promotions', icon: Users },
     { name: 'Marketplace', href: '/admin/marketplace', icon: Store },
     { name: 'Configuration', href: '/admin/settings', icon: Settings },
 ]

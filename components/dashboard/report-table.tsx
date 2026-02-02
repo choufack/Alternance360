@@ -1,3 +1,5 @@
+"use client"
+
 import { useState } from "react"
 import { BlockReport, ProgressReport } from "@/app/actions/report-generator"
 import { Progress } from "@/components/ui/progress"

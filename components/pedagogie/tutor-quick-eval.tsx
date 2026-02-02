@@ -17,7 +17,7 @@ interface TutorEvalProps {
         reflexion_appris: string
         competenceIds: string[]
     }[]
-    competences: { id: string, description: string }[]
+    competences: { id: string, description: string, items?: { id: string, label: string }[] }[]
 }
 
 export function TutorQuickEval({ apprenticeName, activities, competences }: TutorEvalProps) {
@@ -103,6 +103,25 @@ export function TutorQuickEval({ apprenticeName, activities, competences }: Tuto
                             <Card key={c.id} className="border-none shadow-sm overflow-hidden">
                                 <div className="p-4 bg-white">
                                     <p className="text-sm font-bold text-gray-800 leading-snug mb-4">{c.description}</p>
+
+                                    {/* Sub-criteria Checklist */}
+                                    {c.items && c.items.length > 0 && (
+                                        <div className="mb-4 pl-2 space-y-2 border-l-2 border-slate-100">
+                                            {c.items.map(item => (
+                                                <div key={item.id} className="flex items-start gap-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        id={`item-${item.id}`}
+                                                        className="mt-1 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                    <label htmlFor={`item-${item.id}`} className="text-xs text-slate-600 leading-tight">
+                                                        {item.label}
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
                                     <div className="grid grid-cols-3 gap-2">
                                         <button
                                             onClick={() => handleToggleEval(c.id, 'ACQUIS')}

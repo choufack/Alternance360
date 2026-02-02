@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { CheckCircle2, Loader2, PenTool, User, Building2, GraduationCap } from 'lucide-react'
 import { signAsApprentice, signAsTutor, signAsCFA } from '@/app/actions/signature'
 import { toast } from 'sonner'
-import { SignatureCanvas } from '@/components/ui/signature-canvas'
+import { SignatureCanvas, type SignatureCanvasHandle } from '@/components/ui/signature-canvas'
 
 type SignatureParty = {
     name: string
@@ -31,7 +31,7 @@ type Props = {
 export function TripartiteSignature({ livretId, status, userRole, magicToken }: Props) {
     const [loading, setLoading] = useState(false)
     const [localStatus, setLocalStatus] = useState(status)
-    const signatureRef = useRef<any>(null)
+    const signatureRef = useRef<SignatureCanvasHandle>(null)
 
     const handleSign = async () => {
         if (!signatureRef.current) return

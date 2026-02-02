@@ -55,9 +55,16 @@ export const { handlers, auth, signIn, signOut, update } = NextAuth({
                 token.customRole = (user as any).customRole
             }
 
-            // Handle session updates (impersonation)
+            // Handle session updates (impersonation start/stop)
             if (trigger === "update" && session) {
-                return { ...token, ...session }
+                token.role = session.user?.role ?? token.role
+                token.tenantId = session.user?.tenantId ?? token.tenantId
+                token.isImpersonating = session.isImpersonating ?? token.isImpersonating
+                token.originalUserId = session.originalUserId ?? token.originalUserId
+                // Update sub to target user ID if impersonating
+                if (session.user?.id) {
+                    token.sub = session.user.id
+                }
             }
 
             return token
@@ -67,7 +74,7 @@ export const { handlers, auth, signIn, signOut, update } = NextAuth({
                 session.user.id = token.sub as string
                 session.user.role = token.role as string
                 session.user.tenantId = token.tenantId as string
-                (session.user as any).customRole = token.customRole
+                session.user.customRole = token.customRole
 
                 // Impersonation data
                 if (token.isImpersonating) {
@@ -81,4 +88,4 @@ export const { handlers, auth, signIn, signOut, update } = NextAuth({
     pages: {
         signIn: "/login",
     },
-})
+}) as any
