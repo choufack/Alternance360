@@ -6,14 +6,18 @@ if (!apiKey) {
     console.warn("GOOGLE_API_KEY is not defined in the environment variables.");
 }
 
-const genAI = new GoogleGenerativeAI(apiKey || "");
-const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+const model = genAI ? genAI.getGenerativeModel({ model: "gemini-flash-latest" }) : null;
 
 export async function generateText(prompt: string): Promise<string> {
     if (!apiKey) {
-        // Fail silently or return empty if not configured, to avoid breaking UI
-        console.warn("GOOGLE_API_KEY missing, returning empty string");
-        return "";
+        console.warn("GOOGLE_API_KEY missing");
+        return "Erreur Configuration: Clé API manquante";
+    }
+
+    if (!model) {
+        console.warn("AI Model not initialized");
+        return "Erreur Configuration: Modèle IA non initialisé";
     }
 
     try {
@@ -26,6 +30,12 @@ export async function generateText(prompt: string): Promise<string> {
             return "Analyse IA indisponible (Quota atteint).";
         }
         console.error("Error generating text with AI:", error);
+
+        // Handle specific "API Key not found" error from Google
+        if (error.message?.includes('API Key not found')) {
+            return "Erreur Configuration: Clé API invalide";
+        }
+
         return "Erreur lors de la génération IA.";
     }
 }

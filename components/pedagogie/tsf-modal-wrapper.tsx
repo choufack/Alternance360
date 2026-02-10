@@ -21,7 +21,7 @@ export function TSFModalWrapper({ children, studentName }: TSFModalWrapperProps)
 
     return (
         <Dialog defaultOpen={true} onOpenChange={handleOpenChange}>
-            <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0 gap-0" aria-describedby="tsf-modal-description">
+            <DialogContent className="w-screen h-screen max-w-none m-0 rounded-none flex flex-col p-0 gap-0" aria-describedby="tsf-modal-description">
                 <DialogHeader className="px-8 py-6 border-b">
                     <DialogTitle>
                         TSF - {studentName}

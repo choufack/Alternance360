@@ -17,7 +17,13 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import { updateReferentielStructure, generateCriteriaWithAI } from '@/app/admin/actions'
+import { updateReferentielStructure, generateCriteriaWithAI, refineCompetence, generateCompetenceFromDescription } from '@/app/admin/actions'
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
+import { Textarea } from "@/components/ui/textarea"
 import {
     DndContext,
     closestCenter,
@@ -61,16 +67,19 @@ type Referentiel = {
     blocs: Bloc[]
 }
 
+
 function SortableCompetence({
     comp,
     index,
     onEdit,
-    onDelete
+    onDelete,
+    onRefine
 }: {
     comp: Competence,
     index: number,
-    onEdit: (id: string, desc: string) => void,
-    onDelete: (id: string) => void
+    onEdit: (id: string, desc: string, indicators?: Indicateur[]) => void,
+    onDelete: (id: string) => void,
+    onRefine: (id: string, prompt: string) => Promise<void>
 }) {
     const {
         attributes,
@@ -81,11 +90,24 @@ function SortableCompetence({
         isDragging
     } = useSortable({ id: comp.id })
 
+    const [refinePrompt, setRefinePrompt] = useState("")
+    const [isRefining, setIsRefining] = useState(false)
+    const [popoverOpen, setPopoverOpen] = useState(false)
+
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
         zIndex: isDragging ? 50 : 0,
         opacity: isDragging ? 0.5 : 1,
+    }
+
+    const handleRefine = async () => {
+        if (!refinePrompt.trim()) return
+        setIsRefining(true)
+        await onRefine(comp.id, refinePrompt)
+        setIsRefining(false)
+        setPopoverOpen(false)
+        setRefinePrompt("")
     }
 
     return (
@@ -112,10 +134,17 @@ function SortableCompetence({
                             </Badge>
                         )}
                     </div>
-                    <Input
+                    <Textarea
                         value={comp.description}
                         onChange={(e) => onEdit(comp.id, e.target.value)}
-                        className="border-none bg-transparent p-0 h-auto text-lg font-medium text-slate-900 focus:ring-0 focus:outline-none"
+                        className="border-none bg-transparent p-0 min-h-[28px] h-auto resize-none text-lg font-medium text-slate-900 focus-visible:ring-0 focus-visible:outline-none shadow-none leading-tight overflow-hidden"
+                        rows={1}
+                        ref={(el) => {
+                            if (el) {
+                                el.style.height = 'auto';
+                                el.style.height = `${el.scrollHeight}px`;
+                            }
+                        }}
                     />
 
                     {comp.indicateurs.length > 0 && (
@@ -129,14 +158,43 @@ function SortableCompetence({
                     )}
                 </div>
 
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onDelete(comp.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500 hover:bg-red-50"
-                >
-                    <Trash2 size={16} />
-                </Button>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                        <PopoverTrigger asChild>
+                            <Button variant="ghost" size="sm" className="text-slate-400 hover:text-amber-600 hover:bg-amber-50">
+                                <Sparkles size={16} />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-4" align="end">
+                            <h4 className="font-bold text-sm mb-2 text-slate-900">Améliorer avec l'IA</h4>
+                            <p className="text-xs text-slate-500 mb-3">Donnez une instruction pour reformuler ou ajouter des indicateurs.</p>
+                            <Textarea
+                                placeholder="Ex: Rends ça plus technique, ajoute 3 indicateurs..."
+                                className="mb-3 h-20 text-sm"
+                                value={refinePrompt}
+                                onChange={(e) => setRefinePrompt(e.target.value)}
+                            />
+                            <Button
+                                size="sm"
+                                className="w-full gap-2 bg-amber-500 hover:bg-amber-600 text-white"
+                                onClick={handleRefine}
+                                disabled={isRefining}
+                            >
+                                {isRefining ? <Wand2 className="animate-spin" size={14} /> : <Sparkles size={14} />}
+                                {isRefining ? "Génération..." : "Générer"}
+                            </Button>
+                        </PopoverContent>
+                    </Popover>
+
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onDelete(comp.id)}
+                        className="text-slate-400 hover:text-red-500 hover:bg-red-50"
+                    >
+                        <Trash2 size={16} />
+                    </Button>
+                </div>
             </div>
         </div>
     )
@@ -148,6 +206,10 @@ export function ConfiguratorClient({ referentiel }: { referentiel: Referentiel }
     const [hasChanges, setHasChanges] = useState(false)
     const [saving, setSaving] = useState(false)
     const [aiGenerating, setAiGenerating] = useState(false)
+
+    // New Generator State
+    const [generatorInput, setGeneratorInput] = useState("")
+    const [isGenerating, setIsGenerating] = useState(false)
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -207,14 +269,43 @@ export function ConfiguratorClient({ referentiel }: { referentiel: Referentiel }
         }
     }, [selectedBlocId, selectedBloc])
 
-    const handleCompetenceEdit = (competenceId: string, newDescription: string) => {
+    const handleCompetenceEdit = (competenceId: string, newDescription: string, indicators?: Indicateur[]) => {
         setBlocs(prev => prev.map(bloc => ({
             ...bloc,
             competences: bloc.competences.map(comp =>
-                comp.id === competenceId ? { ...comp, description: newDescription } : comp
+                comp.id === competenceId ? {
+                    ...comp,
+                    description: newDescription,
+                    ...(indicators ? { indicateurs: indicators } : {})
+                } : comp
             )
         })))
         setHasChanges(true)
+    }
+
+    const handleCompetenceRefine = async (competenceId: string, prompt: string) => {
+        console.log("Refining competence...", { competenceId, prompt });
+        const comp = selectedBloc?.competences.find(c => c.id === competenceId)
+        if (!comp) return
+
+        try {
+            const result = await refineCompetence(comp.description, comp.indicateurs?.map(i => i.description) || [], prompt)
+            console.log("Refine result:", result);
+
+            if (result.success && result.data) {
+                handleCompetenceEdit(
+                    competenceId,
+                    result.data.description,
+                    result.data.indicateurs?.map((d: string, i: number) => ({ id: `new-ind-${Date.now()}-${i}`, description: d }))
+                )
+                toast.success("Compétence mise à jour par l'IA !")
+            } else {
+                toast.error(result.error || "Erreur IA")
+            }
+        } catch (e) {
+            console.error("Refine Client Error:", e);
+            toast.error("Erreur lors de l'appel IA")
+        }
     }
 
     const handleAIGenerate = async () => {
@@ -250,6 +341,52 @@ export function ConfiguratorClient({ referentiel }: { referentiel: Referentiel }
             toast.error("Erreur lors de la génération IA")
         } finally {
             setAiGenerating(false)
+        }
+    }
+
+    // New Generator Handler
+    const handleGenerateNew = async () => {
+        console.log("Triggering generation...", { generatorInput, selectedBlocId });
+        if (!generatorInput.trim() || !selectedBlocId) {
+            console.warn("Generation aborted: input empty or no bloc selected");
+            return;
+        }
+        setIsGenerating(true)
+
+        try {
+            console.log("Calling server action generateCompetenceFromDescription...");
+            const result = await generateCompetenceFromDescription(generatorInput)
+            console.log("Server response:", result);
+
+            if (result.success && result.data) {
+                setBlocs(prev => prev.map(bloc => {
+                    if (bloc.id !== selectedBlocId) return bloc
+                    return {
+                        ...bloc,
+                        competences: [
+                            ...bloc.competences,
+                            {
+                                id: `gen-${Date.now()}`,
+                                description: result.data.description,
+                                indicateurs: result.data.indicateurs?.map((d: string, i: number) => ({
+                                    id: `gen-ind-${Date.now()}-${i}`,
+                                    description: d
+                                })) || []
+                            }
+                        ]
+                    }
+                }))
+                setHasChanges(true)
+                setGeneratorInput("")
+                toast.success("Compétence générée !")
+            } else {
+                toast.error(result.error || "Erreur de génération")
+            }
+        } catch (e) {
+            console.error("Client Error:", e);
+            toast.error("Erreur système")
+        } finally {
+            setIsGenerating(false)
         }
     }
 
@@ -321,9 +458,9 @@ export function ConfiguratorClient({ referentiel }: { referentiel: Referentiel }
             </aside>
 
             {/* Right Panel - Bloc Editor */}
-            <main className="flex-1 overflow-y-auto">
+            <main className="flex-1 overflow-y-auto bg-slate-50">
                 {selectedBloc ? (
-                    <div className="p-8">
+                    <div className="p-8 max-w-5xl mx-auto">
                         {/* Bloc Header */}
                         <header className="flex items-center justify-between mb-8">
                             <div>
@@ -346,7 +483,7 @@ export function ConfiguratorClient({ referentiel }: { referentiel: Referentiel }
                                 ) : (
                                     <>
                                         <Sparkles size={18} />
-                                        Générer avec l'IA
+                                        Suggérer des critères
                                     </>
                                 )}
                             </Button>
@@ -362,13 +499,14 @@ export function ConfiguratorClient({ referentiel }: { referentiel: Referentiel }
                                 items={selectedBloc.competences.map(c => c.id)}
                                 strategy={verticalListSortingStrategy}
                             >
-                                <div className="space-y-4">
+                                <div className="space-y-4 pb-32">
                                     {selectedBloc.competences.map((comp, index) => (
                                         <SortableCompetence
                                             key={comp.id}
                                             comp={comp}
                                             index={index}
                                             onEdit={handleCompetenceEdit}
+                                            onRefine={handleCompetenceRefine}
                                             onDelete={(id) => {
                                                 setBlocs(prev => prev.map(bloc => ({
                                                     ...bloc,
@@ -379,25 +517,49 @@ export function ConfiguratorClient({ referentiel }: { referentiel: Referentiel }
                                         />
                                     ))}
 
-                                    <button
-                                        onClick={() => {
-                                            setBlocs(prev => prev.map(bloc => {
-                                                if (bloc.id !== selectedBlocId) return bloc
-                                                return {
-                                                    ...bloc,
-                                                    competences: [
-                                                        ...bloc.competences,
-                                                        { id: `new-${Date.now()}`, description: "", indicateurs: [] }
-                                                    ]
-                                                }
-                                            }))
-                                            setHasChanges(true)
-                                        }}
-                                        className="w-full p-6 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all flex items-center justify-center gap-2 font-bold"
-                                    >
-                                        <Plus size={20} />
-                                        Ajouter une compétence
-                                    </button>
+                                    {/* Smart Generator Input */}
+                                    <div className="bg-slate-900 rounded-2xl p-1 shadow-xl shadow-slate-200 mt-8 flex items-center gap-2 pl-4 border border-slate-700">
+                                        <Sparkles className="text-amber-400 shrink-0" size={18} />
+                                        <Input
+                                            value={generatorInput}
+                                            onChange={(e) => setGeneratorInput(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleGenerateNew()}
+                                            placeholder="Décrivez une compétence à générer avec l'IA (ex: Savoir gérer un client difficile...)"
+                                            className="border-none bg-transparent text-white placeholder:text-slate-400 focus-visible:ring-0 h-12"
+                                            disabled={isGenerating}
+                                        />
+                                        <Button
+                                            onClick={handleGenerateNew}
+                                            disabled={isGenerating || !generatorInput.trim()}
+                                            className="bg-white text-slate-900 hover:bg-emerald-400 hover:text-white font-bold rounded-xl h-10 px-6 transition-colors"
+                                        >
+                                            {isGenerating ? <Wand2 className="animate-spin" size={16} /> : "Générer"}
+                                        </Button>
+                                    </div>
+
+                                    {/* Manual Add Button */}
+                                    <div className="flex justify-center mt-4">
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => {
+                                                setBlocs(prev => prev.map(bloc => {
+                                                    if (bloc.id !== selectedBlocId) return bloc
+                                                    return {
+                                                        ...bloc,
+                                                        competences: [
+                                                            ...bloc.competences,
+                                                            { id: `new-${Date.now()}`, description: "", indicateurs: [] }
+                                                        ]
+                                                    }
+                                                }))
+                                                setHasChanges(true)
+                                            }}
+                                            className="gap-2 text-slate-400 border-dashed border-slate-300 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50"
+                                        >
+                                            <Plus size={16} />
+                                            Ajouter manuellement vide
+                                        </Button>
+                                    </div>
                                 </div>
                             </SortableContext>
                         </DndContext>
@@ -407,8 +569,8 @@ export function ConfiguratorClient({ referentiel }: { referentiel: Referentiel }
                         Sélectionnez un bloc pour commencer
                     </div>
                 )}
-
             </main>
         </div>
     )
 }
+

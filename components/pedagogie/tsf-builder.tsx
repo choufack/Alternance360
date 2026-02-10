@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useState, Fragment } from "react"
 import { updateTSFCell, updateTSFDescription } from "@/app/actions/update-tsf"
 import { updatePeriodDate, notifyStudentOfPeriod } from "@/app/actions/tsf"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -228,7 +228,7 @@ export function TSFGrid({ contractId, periods, competences, initialMappings, isA
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {Object.entries(grouped).map(([bloc, comps]) => (
-                                    <>
+                                    <Fragment key={bloc}>
                                         <tr key={bloc} className="bg-slate-50/30">
                                             <td colSpan={periods.length + 1} className="p-4 px-6 font-black text-slate-900 text-xs uppercase tracking-wide">
                                                 {bloc}
@@ -348,7 +348,7 @@ export function TSFGrid({ contractId, periods, competences, initialMappings, isA
                                                 </tr>
                                             )
                                         })}
-                                    </>
+                                    </Fragment>
                                 ))}
                             </tbody>
                         </table>

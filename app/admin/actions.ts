@@ -639,3 +639,115 @@ export async function updateTenant(formData: FormData) {
         return { error: "Erreur lors de la mise à jour" }
     }
 }
+
+export async function chatWithAI(messages: { role: string, content: string }[], context: string) {
+    const session = await auth()
+    if (!session?.user?.id) return { error: "Non connecté" }
+
+    const lastMessage = messages[messages.length - 1];
+    const history = messages.slice(0, -1).map(m => `${m.role === 'user' ? 'Utilisateur' : 'Expert Pédagogique'}: ${m.content}`).join('\n');
+
+    const prompt = `
+        Tu es un expert en ingénierie pédagogique pour l'apprentissage et la formation professionnelle.
+        Ton rôle est d'aider un formateur ou un administrateur à concevoir des référentiels de compétences (RNCP).
+
+        CONTEXTE ACTUEL :
+        ${context}
+
+        HISTORIQUE :
+        ${history}
+
+        Dernière demande de l'utilisateur : "${lastMessage.content}"
+
+        Réponds de manière concise, structurée et directement exploitable. Propose des reformulations, des critères ou des conseils pédagogiques précis.
+    `;
+
+    try {
+        const response = await generateText(prompt);
+        return { success: true, response };
+
+    } catch (error) {
+        console.error("Chat AI Error:", error);
+        return { error: "Erreur lors de la communication avec l'IA." };
+    }
+}
+
+export async function refineCompetence(currentDescription: string, currentIndicators: string[], userPrompt: string) {
+    const session = await auth()
+    if (!session?.user?.id) return { error: "Non connecté" }
+
+    const prompt = `
+        Tu es un expert pédagogique.
+        CONTEXTE :
+        Compétence actuelle : "${currentDescription}"
+        Indicateurs actuels : ${JSON.stringify(currentIndicators)}
+
+        DEMANDE UTILISATEUR : "${userPrompt}"
+
+        TÂCHE : Réécris la compétence et/ou les indicateurs pour répondre à la demande.
+        
+        FORMAT DE RÉPONSE ATTENDU (JSON) :
+        {
+            "description": "Nouvelle description",
+            "indicateurs": ["Indicateur 1", "Indicateur 2", ...]
+        }
+        Réponds UNIQUEMENT avec le JSON valide.
+    `;
+
+    try {
+        const result = await generateText(prompt);
+        const jsonMatch = result.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("Format JSON non trouvé");
+
+        const data = JSON.parse(jsonMatch[0]);
+        return { success: true, data };
+    } catch (error) {
+        console.error("Refine Competence Error:", error);
+        return { error: "Erreur lors de l'adaptation par l'IA." };
+    }
+}
+
+export async function generateCompetenceFromDescription(userDescription: string) {
+    console.log("SERVER ACTION: generateCompetenceFromDescription", userDescription);
+    const session = await auth()
+    if (!session?.user?.id) {
+        console.error("SERVER: User not connected");
+        return { error: "Non connecté" }
+    }
+
+    const prompt = `
+        Tu es un expert pédagogique.
+        TÂCHE : Créer une compétence complète à partir de cette description courte : "${userDescription}".
+        
+        FORMAT DE RÉPONSE ATTENDU (JSON) :
+        {
+            "description": "Description formelle et pédagogique de la compétence",
+            "indicateurs": ["Indicateur de performance 1", "Indicateur 2", "Indicateur 3"]
+        }
+        Réponds UNIQUEMENT avec le JSON valide.
+    `;
+
+    try {
+        console.log("SERVER: Calling Google AI...");
+        const result = await generateText(prompt);
+        console.log("SERVER: AI Result:", result);
+
+        // Check if result is an error message
+        if (result.startsWith("Erreur")) {
+            return { error: result };
+        }
+
+        const jsonMatch = result.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            console.error("Invalid JSON from AI:", result);
+            return { error: "L'IA a renvoyé un format inattendu. Veuillez réessayer." };
+        }
+
+        const data = JSON.parse(jsonMatch[0]);
+        return { success: true, data };
+    } catch (error) {
+        console.error("Generate Competence Error:", error);
+        return { error: "Erreur lors de la génération par l'IA." };
+    }
+}
+
