@@ -92,6 +92,7 @@ model Referentiel {
   certificationLevel String?
   tenantId           String?
   domain             String?
+  status             String?          @default("ACTIVE")
   blocs              BlocCompetence[]
   contracts          Contract[]
   tenant             Tenant?          @relation(fields: [tenantId], references: [id], onDelete: Cascade)

@@ -4,6 +4,7 @@ import { auth } from "@/auth"
 import db from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
+import { logAuditEvent } from "./audit"
 
 // --- Schemas ---
 const CreateTicketSchema = z.object({
@@ -49,6 +50,8 @@ export async function createTicket(prevState: any, formData: FormData) {
             }
         })
 
+        await logAuditEvent("CREATE_TICKET", "SupportTicket", ticket.id, { subject: validated.data.subject });
+
         revalidatePath('/dashboard/support')
         return { success: true, ticketId: ticket.id }
     } catch (e) {
@@ -82,12 +85,15 @@ export async function replyToTicket(ticketId: string, content: string) {
             }
         })
 
+        await logAuditEvent("REPLY_TO_TICKET", "SupportTicket", ticketId);
+
         // Auto-update status if Admin replies
         if (session.user.role === 'super_admin' && ticket.status === 'OPEN') {
             await db.supportTicket.update({
                 where: { id: ticketId },
                 data: { status: 'IN_PROGRESS' }
             })
+            await logAuditEvent("UPDATE_TICKET_STATUS", "SupportTicket", ticketId, { status: 'IN_PROGRESS' });
         }
 
         // Auto-update status if Tenant replies (re-open?)
@@ -160,6 +166,8 @@ export async function updateTicketStatus(id: string, status: string) {
         where: { id },
         data: { status }
     })
+
+    await logAuditEvent("UPDATE_TICKET_STATUS", "SupportTicket", id, { status });
 
     revalidatePath(`/super-admin/support`)
     return { success: true }

@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import db from '@/lib/db'
 import { internalGenerateTSF } from './generate-tsf'
 import { revalidatePath } from 'next/cache'
+import { logAuditEvent } from './audit'
 
 export async function generateTSFForPromotion(promotionId: string) {
     const session = await auth()
@@ -52,6 +53,8 @@ export async function generateTSFForPromotion(promotionId: string) {
                 failCount++ // No contract to generate for
             }
         }
+
+        await logAuditEvent("GENERATE_BULK_TSF", "Promotion", promotionId, { successCount, failCount });
 
         revalidatePath(`/admin/promotions/${promotionId}`)
 

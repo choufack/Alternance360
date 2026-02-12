@@ -28,14 +28,14 @@ const navigation = [
     { name: 'Contrats', href: '/admin/contracts', icon: FileText },
     { name: 'Suivi Apprentis', href: '/admin/suivi', icon: GraduationCap },
     { name: 'Atelier', href: '/admin/referentiels', icon: Wrench },
+    { name: 'Marketplace', href: '/admin/marketplace', icon: Store, role: 'admin' },
     { name: 'Offres de Formation', href: '/admin/offres', icon: Briefcase },
     { name: 'Filières', href: '/admin/filieres', icon: Store },
     { name: 'Promotions', href: '/admin/promotions', icon: Users },
-    { name: 'Marketplace', href: '/admin/marketplace', icon: Store },
     { name: 'Configuration', href: '/admin/settings', icon: Settings },
 ]
 
-export function AdminSidebar() {
+export function AdminSidebar({ role }: { role?: string }) {
     const pathname = usePathname()
 
     return (
@@ -51,8 +51,14 @@ export function AdminSidebar() {
             </div>
 
             <nav className="flex-1 px-4 space-y-1 overflow-y-auto scrollbar-hide py-4">
-                {navigation.map((item) => {
+                {navigation.filter(item => !item.role || item.role === role).map((item: any) => {
                     const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+
+                    // Simple role check if specified
+                    // Note: We'd ideally need the user session here, 
+                    // but for client-side we'll rely on the parent or a context if available.
+                    // For now, let's keep it simple as the user requested "Marketplace for Admin CFA".
+
                     return (
                         <Link
                             key={item.href}

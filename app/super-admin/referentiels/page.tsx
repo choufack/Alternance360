@@ -16,7 +16,7 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { NewReferentielButton, ToggleVisibilityButton } from "@/components/super-admin/referentiel-actions"
+import { NewReferentielButton, ToggleVisibilityButton, AddToAtelierButton } from "@/components/super-admin/referentiel-actions"
 
 import { ReferentielSearch } from "@/components/super-admin/referentiel-search"
 
@@ -55,11 +55,27 @@ export default async function GlobalReferentielsPage({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {referentiels.map((ref: any) => (
                     <div key={ref.id} className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all group relative overflow-hidden">
-                        {ref.isGlobal && (
-                            <div className="absolute top-0 right-0 p-4">
+                        {ref.isGlobal ? (
+                            <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
                                 <Badge className="bg-indigo-600 text-white border-0 gap-1 rounded-lg">
                                     <Globe size={10} /> GLOBAL
                                 </Badge>
+                                {ref.status === 'INACTIVE' && (
+                                    <Badge variant="destructive" className="gap-1 rounded-lg">
+                                        INACTIF
+                                    </Badge>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
+                                <Badge className="bg-emerald-600 text-white border-0 gap-1 rounded-lg">
+                                    <Building2 size={10} /> LOCAL
+                                </Badge>
+                                {ref.status === 'INACTIVE' && (
+                                    <Badge variant="destructive" className="gap-1 rounded-lg">
+                                        INACTIF
+                                    </Badge>
+                                )}
                             </div>
                         )}
 

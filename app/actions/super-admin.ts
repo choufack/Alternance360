@@ -108,6 +108,8 @@ export async function rejectLead(leadId: string) {
         }
     })
 
+    await logAuditEvent('REJECT_LEAD', 'Lead', leadId, { adminId: session.user.id });
+
     revalidatePath('/super-admin/leads')
     return { success: true }
 }
@@ -194,22 +196,23 @@ export async function getGlobalReferentiels(search?: string) {
     const session = await auth()
     if (!session || session.user.role !== 'super_admin') throw new Error('Non autorisé')
 
-    const whereClause: any = {}
-    if (search) {
-        whereClause.OR = [
-            { title: { contains: search, mode: 'insensitive' } },
-            { codeRncp: { contains: search, mode: 'insensitive' } }
-        ]
-    }
-
-    return await db.referentiel.findMany({
-        where: whereClause,
+    // Workaround for SQLite case-sensitivity
+    const allReferentiels = await db.referentiel.findMany({
+        where: {}, // Fetch all to filter in memory (SQLite limitation)
         include: {
             tenant: { select: { name: true } },
             _count: { select: { blocs: true, contracts: true } }
         },
         orderBy: [{ isGlobal: 'desc' }, { createdAt: 'desc' }]
     })
+
+    if (!search) return allReferentiels
+
+    const lowerSearch = search.toLowerCase()
+    return allReferentiels.filter(r =>
+        r.title.toLowerCase().includes(lowerSearch) ||
+        r.codeRncp.toLowerCase().includes(lowerSearch)
+    )
 }
 
 export async function createGlobalReferentiel(data: { codeRncp: string, title: string }) {

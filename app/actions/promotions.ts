@@ -4,6 +4,7 @@ import db from "@/lib/db";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { generateTSFForPromotion } from "@/app/actions/bulk-generate-tsf";
+import { logAuditEvent } from "./audit";
 
 // Helper for default password hash
 const hashPassword = async (pwd: string) => {
@@ -26,6 +27,9 @@ export async function createPromotion(data: { name: string, year: number, startD
                 tenantId: session.user.tenantId
             }
         });
+
+        await logAuditEvent("CREATE_PROMOTION", "Promotion", promotion.id, { name: data.name });
+
         revalidatePath("/admin/promotions");
         return { success: true, data: promotion };
     } catch (error) {
@@ -40,9 +44,15 @@ export async function updatePromotion(id: string, data: { name?: string, year?: 
 
     try {
         await db.promotion.update({
-            where: { id },
+            where: {
+                id,
+                tenantId: session.user.tenantId // Security
+            },
             data
         });
+
+        await logAuditEvent("UPDATE_PROMOTION", "Promotion", id, data);
+
         revalidatePath("/admin/promotions");
         return { success: true };
     } catch (error) {
@@ -55,7 +65,15 @@ export async function deletePromotion(id: string) {
     if (!session?.user?.id) return { error: "Non autorisé" };
 
     try {
-        await db.promotion.delete({ where: { id } });
+        await db.promotion.delete({
+            where: {
+                id,
+                tenantId: session.user.tenantId // Security
+            }
+        });
+
+        await logAuditEvent("DELETE_PROMOTION", "Promotion", id);
+
         revalidatePath("/admin/promotions");
         return { success: true };
     } catch (error) {
@@ -120,7 +138,7 @@ export async function importStudentsAction(promotionId: string, csvData: string)
                 });
 
                 if (!existingContract) {
-                    await db.contract.create({
+                    const contract = await db.contract.create({
                         data: {
                             startDate: promotion.startDate,
                             endDate: promotion.endDate,
@@ -128,13 +146,16 @@ export async function importStudentsAction(promotionId: string, csvData: string)
                             userId,
                             referentielId: promotion.filiere.referentielId || "", // Ensure referentielId is present
                             periodType: "SEMESTER", // Default
-                            // status: "ACTIVE" // Removed as it might not be in schema, rely on defaults
                         }
                     });
+
+                    await logAuditEvent("CREATE_CONTRACT", "Contract", contract.id, { userId });
                 }
             }
             count++;
         }
+
+        await logAuditEvent("IMPORT_STUDENTS", "Promotion", promotionId, { count });
 
         revalidatePath(`/admin/promotions`);
         revalidatePath(`/admin/users`);

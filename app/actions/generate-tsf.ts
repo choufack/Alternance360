@@ -3,6 +3,7 @@
 import db from '@/lib/db'
 import { auth } from '@/auth'
 import { revalidatePath } from 'next/cache'
+import { logAuditEvent } from './audit'
 
 export async function generateTSF(contractId: string) {
     const session = await auth()
@@ -10,6 +11,7 @@ export async function generateTSF(contractId: string) {
 
     const result = await internalGenerateTSF(contractId)
     if (result.success) {
+        await logAuditEvent("GENERATE_TSF", "Contract", contractId);
         revalidatePath(`/dashboard/contracts/${contractId}`)
     }
     return result

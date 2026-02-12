@@ -6,8 +6,43 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { RNCPImporter } from "@/components/admin/rncp-importer"
 import { Plus, Globe, Lock, Loader2 } from "lucide-react"
 import { toggleReferentielVisibility } from "@/app/actions/super-admin"
+import { cloneReferentielAction } from "@/app/actions/import-rncp-bridge"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+
+export function AddToAtelierButton({ referentielId }: { referentielId: string }) {
+    const [isLoading, setIsLoading] = useState(false)
+    const router = useRouter()
+
+    const handleAdd = async () => {
+        setIsLoading(true)
+        try {
+            const result = await cloneReferentielAction(referentielId)
+            if (result.success) {
+                toast.success(result.message)
+                router.push('/admin/referentiels')
+            } else {
+                toast.error(result.error)
+            }
+        } catch (error) {
+            toast.error("Une erreur est survenue")
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    return (
+        <Button
+            onClick={handleAdd}
+            disabled={isLoading}
+            variant="outline"
+            className="rounded-xl h-12 font-bold border-emerald-100 text-emerald-600 hover:bg-emerald-50"
+        >
+            {isLoading ? <Loader2 className="animate-spin" /> : <Plus size={16} className="mr-2" />}
+            Atelier
+        </Button>
+    )
+}
 
 export function NewReferentielButton() {
     const [open, setOpen] = useState(false)

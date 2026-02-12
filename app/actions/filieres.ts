@@ -3,6 +3,7 @@
 import db from "@/lib/db";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
+import { logAuditEvent } from "./audit";
 
 // --- FILIERES ---
 
@@ -19,6 +20,9 @@ export async function createFiliere({ name, description, referentielId }: { name
                 tenantId: session.user.tenantId,
             },
         });
+
+        await logAuditEvent("CREATE_FILIERE", "Filiere", filiere.id, { name });
+
         revalidatePath("/admin/filieres");
         return { success: true, data: filiere };
     } catch (error) {
@@ -33,9 +37,15 @@ export async function updateFiliere({ id, name, description, referentielId }: { 
 
     try {
         await db.filiere.update({
-            where: { id },
+            where: {
+                id,
+                tenantId: session.user.tenantId // Security: Scope to tenant
+            },
             data: { name, description, referentielId }
         });
+
+        await logAuditEvent("UPDATE_FILIERE", "Filiere", id, { name });
+
         revalidatePath("/admin/filieres");
         return { success: true };
     } catch (error) {
@@ -48,7 +58,15 @@ export async function deleteFiliere(id: string) {
     if (!session?.user?.id) return { error: "Non autorisé" };
 
     try {
-        await db.filiere.delete({ where: { id } });
+        await db.filiere.delete({
+            where: {
+                id,
+                tenantId: session.user.tenantId // Security: Scope to tenant
+            }
+        });
+
+        await logAuditEvent("DELETE_FILIERE", "Filiere", id);
+
         revalidatePath("/admin/filieres");
         return { success: true };
     } catch (error) {

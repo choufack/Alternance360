@@ -4,6 +4,7 @@ import db from '@/lib/db'
 import { auth } from '@/auth'
 import { revalidatePath } from 'next/cache'
 import { addDays, addMonths, differenceInDays, format } from 'date-fns'
+import { logAuditEvent } from './audit'
 
 /**
  * Automatically generates mandatory milestones for a contract
@@ -14,7 +15,10 @@ export async function syncMilestones(contractId: string) {
         include: { milestones: true }
     })
 
-    if (!contract) return { error: "Contract not found" }
+    const session = await auth();
+    if (!contract || (session?.user?.tenantId && contract.tenantId !== session.user.tenantId)) {
+        return { error: "Contract not found or unauthorized" }
+    }
 
     // Define mandatory milestones
     const mandatory = [
@@ -55,6 +59,7 @@ export async function syncMilestones(contractId: string) {
         await db.milestone.createMany({
             data: newMilestones
         })
+        await logAuditEvent("SYNC_MILESTONES", "Contract", contractId, { count: newMilestones.length });
     }
 
     return { success: true }
@@ -151,12 +156,23 @@ export async function saveAttendance(data: {
     hours: number,
     status: 'PRESENT' | 'ABSENT_JUSTIFIED' | 'ABSENT_UNJUSTIFIED'
 }) {
+    const session = await auth();
+    if (session?.user?.tenantId) {
+        const contract = await db.contract.findUnique({ where: { id: data.contractId } });
+        if (!contract || contract.tenantId !== session.user.tenantId) {
+            throw new Error("Access denied");
+        }
+    }
+
     const res = await db.attendance.create({
         data: {
             ...data,
             date: new Date(data.date)
         }
     })
+
+    await logAuditEvent("SAVE_ATTENDANCE", "Attendance", res.id, { contractId: data.contractId });
+
     revalidatePath('/admin/suivi')
     return res
 }

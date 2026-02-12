@@ -19,7 +19,7 @@ export default async function AdminLayout({
 
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
-            {isSuperAdmin ? <SuperAdminSidebar /> : <AdminSidebar />}
+            {isSuperAdmin ? <SuperAdminSidebar /> : <AdminSidebar role={session.user.role} />}
             <main className="flex-1 overflow-y-auto p-12 lg:p-16">
                 {children}
             </main>

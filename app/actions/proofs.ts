@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
 import db from '@/lib/db'
 import { uploadFile } from '@/lib/upload'
+import { logAuditEvent } from './audit'
 
 export async function uploadProof(formData: FormData) {
     const session = await auth()
@@ -25,7 +26,7 @@ export async function uploadProof(formData: FormData) {
             throw new Error("Upload failed")
         }
 
-        await db.proof.create({
+        const proof = await db.proof.create({
             data: {
                 userId: session.user.id,
                 competenceId: competenceId,
@@ -36,6 +37,8 @@ export async function uploadProof(formData: FormData) {
                 status: 'PENDING'
             }
         })
+
+        await logAuditEvent("UPLOAD_PROOF", "Proof", proof.id, { competenceId });
 
         revalidatePath('/dashboard/journal')
         return { success: true }

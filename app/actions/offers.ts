@@ -3,6 +3,7 @@
 import { auth } from '@/auth'
 import db from '@/lib/db'
 import { revalidatePath } from 'next/cache'
+import { logAuditEvent } from './audit'
 
 // --- Types ---
 export type OfferFormData = {
@@ -68,6 +69,8 @@ export async function createOffer(data: OfferFormData) {
             }
         })
 
+        await logAuditEvent("CREATE_OFFER", "TrainingOffer", offer.id, { title: data.title });
+
         revalidatePath('/admin/offres')
         revalidatePath(`/admin/referentiels/${data.referentielId}`)
         return { success: true, data: offer }
@@ -89,13 +92,18 @@ export async function updateOffer(id: string, data: Partial<OfferFormData>) {
         }
 
         const offer = await db.trainingOffer.update({
-            where: { id },
+            where: {
+                id,
+                tenantId: session.user.tenantId // Security
+            },
             data: {
                 ...data,
                 startDate: data.startDate ? new Date(data.startDate) : undefined,
                 endDate: data.endDate ? new Date(data.endDate) : undefined,
             }
         })
+
+        await logAuditEvent("UPDATE_OFFER", "TrainingOffer", id, data);
 
         revalidatePath('/admin/offres')
         return { success: true, data: offer }
@@ -115,7 +123,15 @@ export async function deleteOffer(id: string) {
             return { success: false, error: "Offre introuvable" }
         }
 
-        await db.trainingOffer.delete({ where: { id } })
+        await db.trainingOffer.delete({
+            where: {
+                id,
+                tenantId: session.user.tenantId // Security
+            }
+        })
+
+        await logAuditEvent("DELETE_OFFER", "TrainingOffer", id);
+
         revalidatePath('/admin/offres')
         return { success: true }
     } catch (error) {

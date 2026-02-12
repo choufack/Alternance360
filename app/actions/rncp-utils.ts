@@ -1,6 +1,7 @@
 
 import db from '@/lib/db'
 import { z } from 'zod'
+import { logAuditEvent } from './audit'
 
 // --- Standardized Schemas ---
 
@@ -23,6 +24,7 @@ export const RNCPSchema = z.object({
     title: z.string().min(3),
     certificationLevel: z.string().optional(),
     domain: z.string().optional(),
+    status: z.string().optional(),
     blocs: z.array(BlocSchema)
 })
 
@@ -38,7 +40,10 @@ export async function saveReferentielToDb(
     return await db.$transaction(async (tx) => {
         // 1. Upsert Referentiel
         const existingRef = await tx.referentiel.findFirst({
-            where: { tenantId: targetTenantId, codeRncp: data.code_rncp }
+            where: {
+                codeRncp: data.code_rncp,
+                tenantId: targetTenantId // Re-checking if I should keep this or use tenant: { id: ... }
+            }
         })
 
         const referentiel = await tx.referentiel.upsert({
@@ -46,17 +51,21 @@ export async function saveReferentielToDb(
             update: {
                 title: data.title,
                 certificationLevel: data.certificationLevel,
-                domain: data.domain
+                domain: data.domain,
+                status: (data.status || 'ACTIVE') as any
             },
             create: {
-                tenantId: targetTenantId,
+                tenant: targetTenantId ? { connect: { id: targetTenantId } } : undefined,
                 isGlobal: isGlobal,
                 codeRncp: data.code_rncp,
                 title: data.title,
                 certificationLevel: data.certificationLevel,
-                domain: data.domain
+                domain: data.domain,
+                status: (data.status || 'ACTIVE') as any
             }
         })
+
+        await logAuditEvent("SAVE_REFERENTIEL", "Referentiel", referentiel.id, { codeRncp: data.code_rncp });
 
         // 2. Process Blocs
         for (const bloc of data.blocs) {
@@ -68,8 +77,8 @@ export async function saveReferentielToDb(
                 where: { id: existingBloc?.id || 'new-id' },
                 update: {},
                 create: {
-                    tenantId: targetTenantId,
-                    referentielId: referentiel.id,
+                    tenant: targetTenantId ? { connect: { id: targetTenantId } } : undefined,
+                    referentiel: { connect: { id: referentiel.id } },
                     title: bloc.title
                 }
             })
@@ -84,8 +93,8 @@ export async function saveReferentielToDb(
                     where: { id: existingComp?.id || 'new-id' },
                     update: { description: comp.description },
                     create: {
-                        tenantId: targetTenantId,
-                        blocId: blocDb.id,
+                        tenant: targetTenantId ? { connect: { id: targetTenantId } } : undefined,
+                        bloc: { connect: { id: blocDb.id } },
                         description: comp.description
                     }
                 })
@@ -100,7 +109,7 @@ export async function saveReferentielToDb(
                         if (!existingInd) {
                             await tx.indicateur.create({
                                 data: {
-                                    competenceId: compDb.id,
+                                    competence: { connect: { id: compDb.id } },
                                     description: ind.label
                                 }
                             })

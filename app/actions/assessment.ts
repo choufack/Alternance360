@@ -3,6 +3,7 @@
 import db from '@/lib/db'
 import { auth } from '@/auth'
 import { revalidatePath } from 'next/cache'
+import { logAuditEvent } from './audit'
 
 // Types
 type AssessmentEntry = {
@@ -19,6 +20,14 @@ export async function saveDraft(contractId: string, assessmentId: string | null,
         let finalAssessmentId = assessmentId;
 
         if (!finalAssessmentId) {
+            // Security: Verify contract belongs to user's tenant if user has one
+            if (session.user.tenantId) {
+                const contract = await db.contract.findUnique({ where: { id: contractId } });
+                if (!contract || contract.tenantId !== session.user.tenantId) {
+                    throw new Error("Contrat introuvable ou accès refusé");
+                }
+            }
+
             const newSession = await db.initialAssessment.create({
                 data: {
                     contractId: contractId,
@@ -28,6 +37,8 @@ export async function saveDraft(contractId: string, assessmentId: string | null,
             })
             finalAssessmentId = newSession.id
         }
+
+        await logAuditEvent("SAVE_ASSESSMENT_DRAFT", "InitialAssessment", finalAssessmentId, { contractId });
 
         const userId = session.user.id
         // 2. Upsert Entries
@@ -76,6 +87,8 @@ export async function submitAssessment(assessmentId: string) {
             select: { contractId: true }
         })
 
+        await logAuditEvent("SUBMIT_ASSESSMENT", "InitialAssessment", assessmentId, { contractId: assessment.contractId });
+
         if (assessment.contractId) {
             // AUTOMATION: Generate TSF
             try {
@@ -112,6 +125,8 @@ export async function validateAssessment(assessmentId: string) {
                 validatorId: session.user.id
             }
         })
+
+        await logAuditEvent("VALIDATE_ASSESSMENT", "InitialAssessment", assessmentId, { contractId: assessment.contractId });
 
         // 2. TRIGGER TSF BRIDGE
         const acquisItems = await db.positioning.findMany({

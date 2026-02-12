@@ -50,7 +50,6 @@ const navigation = [
         children: [
             { name: 'Bibliothèque RNCP', href: '/super-admin/referentiels', icon: FileText },
             { name: 'Atelier', href: '/admin/referentiels', icon: Wrench },
-            { name: 'Marketplace', href: '/admin/marketplace', icon: Store },
         ]
     },
     {
@@ -76,11 +75,37 @@ const navigation = [
 
 export function SuperAdminSidebar() {
     const pathname = usePathname()
+    const [hasMounted, setHasMounted] = React.useState(false)
+
+    React.useEffect(() => {
+        setHasMounted(true)
+    }, [])
 
     // Determine default open value based on active path
     const defaultOpen = navigation
         .filter(item => item.children?.some(child => pathname.startsWith(child.href)))
         .map(item => item.name)
+
+    if (!hasMounted) {
+        return (
+            <div className="flex flex-col h-full bg-slate-900 text-slate-300 w-72 border-r border-slate-800">
+                <div className="p-8 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+                        <ShieldCheck size={24} />
+                    </div>
+                    <div>
+                        <h1 className="text-white font-black tracking-tight leading-none">SUPER ADMIN</h1>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Alternance 360</p>
+                    </div>
+                </div>
+                <div className="flex-1 px-4 space-y-4 py-4 animate-pulse">
+                    <div className="h-10 bg-slate-800 rounded-xl w-full" />
+                    <div className="h-10 bg-slate-800 rounded-xl w-full" />
+                    <div className="h-10 bg-slate-800 rounded-xl w-full" />
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="flex flex-col h-full bg-slate-900 text-slate-300 w-72 border-r border-slate-800">

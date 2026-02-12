@@ -4,6 +4,7 @@ import { auth } from "@/auth"
 import db from "@/lib/db"
 import { uploadFile } from "@/lib/upload"
 import { revalidatePath } from "next/cache"
+import { logAuditEvent } from "./audit"
 
 export async function createJournalEntry(data: any, formData?: FormData) {
     const session = await auth()
@@ -45,7 +46,7 @@ export async function createJournalEntry(data: any, formData?: FormData) {
     })
 
     try {
-        await db.proof.create({
+        const proof = await db.proof.create({
             data: {
                 userId: session.user.id,
                 title: data.titre,
@@ -56,6 +57,8 @@ export async function createJournalEntry(data: any, formData?: FormData) {
                 competenceId: primaryCompetenceId // Link for relational queries
             }
         })
+
+        await logAuditEvent("CREATE_JOURNAL_ENTRY", "Proof", proof.id, { title: data.titre });
     } catch (e) {
         console.error("Insert error:", e)
         return { error: "Erreur lors de la sauvegarde en base de données" }

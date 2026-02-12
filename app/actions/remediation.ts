@@ -3,6 +3,7 @@
 import db from '@/lib/db'
 import { auth } from '@/auth'
 import { revalidatePath } from 'next/cache'
+import { logAuditEvent } from './audit'
 
 export type RemediationAction = {
     title: string
@@ -37,6 +38,8 @@ export async function createRemediationPlan(contractId: string, triggerReason: s
         }
     })
 
+    await logAuditEvent("CREATE_REMEDIATION_PLAN", "RemediationPlan", plan.id, { contractId, triggerReason });
+
     revalidatePath('/admin/remediation')
     return { success: true, planId: plan.id }
 }
@@ -55,12 +58,17 @@ export async function addRemediationAction(planId: string, action: RemediationAc
     actions.push(action)
 
     await db.remediationPlan.update({
-        where: { id: planId },
+        where: {
+            id: planId,
+            tenantId: session.user.tenantId // Security
+        },
         data: {
             actions: JSON.stringify(actions),
             status: 'IN_PROGRESS'
         }
     })
+
+    await logAuditEvent("ADD_REMEDIATION_ACTION", "RemediationPlan", planId, action);
 
     revalidatePath('/admin/remediation')
     return { success: true }
@@ -82,9 +90,14 @@ export async function completeRemediationAction(planId: string, actionIndex: num
     actions[actionIndex].status = 'DONE'
 
     await db.remediationPlan.update({
-        where: { id: planId },
+        where: {
+            id: planId,
+            tenantId: session.user.tenantId // Security
+        },
         data: { actions: JSON.stringify(actions) }
     })
+
+    await logAuditEvent("COMPLETE_REMEDIATION_ACTION", "RemediationPlan", planId, { actionIndex });
 
     revalidatePath('/admin/remediation')
     return { success: true }
@@ -98,12 +111,17 @@ export async function resolveRemediationPlan(planId: string) {
     if (!session?.user?.id) throw new Error("Unauthorized")
 
     await db.remediationPlan.update({
-        where: { id: planId },
+        where: {
+            id: planId,
+            tenantId: session.user.tenantId // Security
+        },
         data: {
             status: 'RESOLVED',
             resolvedAt: new Date()
         }
     })
+
+    await logAuditEvent("RESOLVE_REMEDIATION_PLAN", "RemediationPlan", planId);
 
     revalidatePath('/admin/remediation')
     return { success: true }

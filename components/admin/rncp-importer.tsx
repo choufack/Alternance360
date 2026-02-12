@@ -6,6 +6,7 @@ export type UploadState = {
     message: string
     error: boolean
     details?: string
+    previewData?: any // Structure of parsed RNCP data
 }
 import { fetchRNCPAction, enrichRNCPAction, saveRNCPAction, getAIStatusAction } from '@/app/actions/import-rncp-bridge'
 import { Button } from '@/components/ui/button'
@@ -23,7 +24,7 @@ const initialState: UploadState = {
 
 export function RNCPImporter({ tenantId }: { tenantId?: string }) {
     const [isPending, startTransition] = useTransition()
-    const [state, setState] = useState(initialState)
+    const [state, setState] = useState<UploadState>(initialState)
     const [activeTab, setActiveTab] = useState("file")
 
     // Bridge State
@@ -38,25 +39,55 @@ export function RNCPImporter({ tenantId }: { tenantId?: string }) {
         getAIStatusAction().then(res => setAiStatus(res))
     }, [])
 
+    const [pendingFile, setPendingFile] = useState<FormData | null>(null)
+
     async function handleFileImport(event: React.FormEvent<HTMLFormElement>) {
-        // ... (omitted for brevity in this replacement chunk, but I'll make sure it's accurate)
         event.preventDefault()
         const formData = new FormData(event.currentTarget)
+        setPendingFile(formData) // Store for confirmation
 
         startTransition(async () => {
             try {
+                // Request Preview
+                formData.set('preview', 'true')
                 const response = await fetch('/api/upload-rncp', {
                     method: 'POST',
                     body: formData
                 })
                 const result = await response.json()
-                setState(result)
-                if (!result.error) {
-                    // revalidate manually via router refresh if needed, or rely on page reload?
-                    // router.refresh() // Need useRouter
+
+                if (result.preview) {
+                    setState({ ...initialState, previewData: result.data } as any)
+                } else {
+                    setState(result)
                 }
             } catch (err) {
                 setState({ message: "Erreur réseau", error: true, details: "L'upload a échoué" })
+            }
+        })
+    }
+
+    async function confirmImport() {
+        if (!pendingFile) return
+
+        startTransition(async () => {
+            try {
+                pendingFile.delete('preview') // Remove preview flag
+                const response = await fetch('/api/upload-rncp', {
+                    method: 'POST',
+                    body: pendingFile
+                })
+                const result = await response.json()
+
+                setState(result) // Show final success/error
+
+                if (!result.error) {
+                    // Reset preview to show the success message clearly
+                    // Maybe redirect or show a "Go to Atelier" button?
+                    setState({ ...result, previewData: null } as any)
+                }
+            } catch (err) {
+                setState({ message: "Erreur lors de la confirmation", error: true, details: "Sauvegarde échouée" })
             }
         })
     }
@@ -117,58 +148,69 @@ export function RNCPImporter({ tenantId }: { tenantId?: string }) {
 
                     <TabsContent value="file">
                         <form onSubmit={handleFileImport} className="space-y-4">
-                            {/* Hidden Input for Tenant Context */}
                             <input type="hidden" name="tenant_id" value={tenantId} />
 
-                            <div className="grid w-full items-center gap-1.5">
-                                <label htmlFor="file" className="text-sm font-medium">Fichier RNCP (JSON ou XML)</label>
-                                <div className="flex items-center gap-2 border border-dashed border-gray-300 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                                    <Upload className="w-4 h-4 text-gray-400" />
-                                    <Input
-                                        id="file"
-                                        name="file"
-                                        type="file"
-                                        accept=".json, .xml"
-                                        required
-                                        className="text-sm cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                                    />
-                                </div>
-                            </div>
+                            {!state.previewData ? (
+                                <>
+                                    <div className="grid w-full items-center gap-1.5">
+                                        <label htmlFor="file" className="text-sm font-medium">Fichier RNCP (JSON ou XML)</label>
+                                        <div className="flex items-center gap-2 border border-dashed border-gray-300 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                                            <Upload className="w-4 h-4 text-gray-400" />
+                                            <Input
+                                                id="file"
+                                                name="file"
+                                                type="file"
+                                                accept=".json, .xml"
+                                                required
+                                                className="text-sm cursor-pointer file:border-0 file:bg-transparent"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2 bg-purple-50 p-4 rounded-lg border border-purple-100">
+                                        <input type="checkbox" id="useAI" name="useAI" className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-600" />
+                                        <label htmlFor="useAI" className="text-sm font-medium text-purple-900">Nettoyer avec l'IA</label>
+                                    </div>
+                                    <Button type="submit" disabled={isPending} className="w-full">
+                                        {isPending ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : "Prévisualiser"}
+                                    </Button>
+                                </>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                        <h3 className="font-bold text-lg mb-2">{state.previewData.title || "Titre Inconnu"}</h3>
+                                        <div className="flex gap-2 mb-4">
+                                            <Badge variant="outline">{state.previewData.code_rncp}</Badge>
+                                            <Badge variant="secondary">{state.previewData.blocs?.length || 0} Blocs</Badge>
+                                        </div>
 
-                            <div className="flex items-center space-x-2 bg-purple-50 p-4 rounded-lg border border-purple-100">
-                                <input
-                                    type="checkbox"
-                                    id="useAI"
-                                    name="useAI"
-                                    className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-600"
-                                />
-                                <div className="grid gap-1.5 leading-none">
-                                    <label
-                                        htmlFor="useAI"
-                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-purple-900"
-                                    >
-                                        Nettoyer & Structurer avec l'IA (Gemini)
-                                    </label>
-                                    <p className="text-[0.8rem] text-purple-600">
-                                        Recommandé pour les données brutes (HTML, texte non structuré).
-                                    </p>
-                                </div>
-                            </div>
+                                        <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
+                                            {state.previewData.blocs?.map((bloc: any, i: number) => (
+                                                <div key={i} className="text-sm p-2 bg-white rounded border border-slate-100">
+                                                    <p className="font-semibold">{bloc.title}</p>
+                                                    <p className="text-xs text-slate-500">{bloc.competences?.length || 0} compétences</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
 
-                            {state.message && (
-                                <div className={`p-3 rounded-md text-sm flex items-start gap-2 ${state.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                                    {state.error ? <AlertCircle className="w-4 h-4 mt-0.5" /> : <CheckCircle className="w-4 h-4 mt-0.5" />}
-                                    <div>
-                                        <p className="font-medium">{state.message}</p>
-                                        {state.details && <p className="text-xs mt-1 opacity-80">{state.details}</p>}
+                                    <div className="flex gap-2">
+                                        <Button type="button" variant="outline" onClick={() => setState(initialState)} className="flex-1">
+                                            Annuler
+                                        </Button>
+                                        <Button type="button" onClick={confirmImport} disabled={isPending} className="flex-1 bg-emerald-600 hover:bg-emerald-700">
+                                            {isPending ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                                            Confirmer l'Import
+                                        </Button>
                                     </div>
                                 </div>
                             )}
 
-                            <Button type="submit" disabled={isPending} className="w-full">
-                                {isPending ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : null}
-                                {isPending ? 'Importation...' : 'Lancer l\'import Fichier'}
-                            </Button>
+                            {state.message && !state.previewData && (
+                                <div className={`p-3 rounded-md text-sm flex items-start gap-2 ${state.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                                    {state.error ? <AlertCircle className="w-4 h-4 mt-0.5" /> : <CheckCircle className="w-4 h-4 mt-0.5" />}
+                                    <div><p className="font-medium">{state.message}</p>{state.details && <p className="text-xs mt-1 opacity-80">{state.details}</p>}</div>
+                                </div>
+                            )}
                         </form>
                     </TabsContent>
 

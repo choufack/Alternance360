@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { auth } from '@/auth'
 import { dispatchWebhook } from '@/lib/webhooks'
 import { revalidatePath } from 'next/cache'
+import { logAuditEvent } from './audit'
 
 export interface LivretData {
     documentId: string
@@ -190,6 +191,8 @@ export async function signLivretAction(livretId: string) {
             signedAt: new Date()
         } as any
     })
+
+    await logAuditEvent("SIGN_LIVRET", "Livret", livretId, { contractId: livret.contractId });
 
     // 2. Calculate final progress (re-using consolidate logic or simple stats)
     const data = await consolidateLivretData(livret.contractId)
