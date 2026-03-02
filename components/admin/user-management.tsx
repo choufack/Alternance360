@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createUser, deleteUser } from '@/app/admin/actions'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,7 @@ import Link from 'next/link'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Trash2, UserPlus, Mail, Building2, UserCircle2, ShieldCheck, GraduationCap, Briefcase } from 'lucide-react'
+import { Trash2, UserPlus, Mail, Building2, UserCircle2, ShieldCheck, GraduationCap, Briefcase, Search } from 'lucide-react'
 
 type User = {
     id: string
@@ -25,6 +25,17 @@ export function UserManagement({ users }: { users: User[] }) {
     const [loading, setLoading] = useState(false)
     const [role, setRole] = useState('apprentice')
     const [error, setError] = useState('')
+    const [search, setSearch] = useState('')
+
+    const filteredUsers = useMemo(() => {
+        if (!search.trim()) return users
+        const q = search.toLowerCase()
+        return users.filter(u =>
+            (u.fullName?.toLowerCase().includes(q)) ||
+            u.email.toLowerCase().includes(q) ||
+            u.role.toLowerCase().includes(q)
+        )
+    }, [users, search])
 
     async function handleSubmit(formData: FormData) {
         setLoading(true)
@@ -45,8 +56,20 @@ export function UserManagement({ users }: { users: User[] }) {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200">
-                <h2 className="text-lg font-bold">Liste des Utilisateurs</h2>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-gray-200">
+                <div className="flex items-center gap-3 flex-1">
+                    <h2 className="text-lg font-bold whitespace-nowrap">Liste des Utilisateurs</h2>
+                    <div className="relative flex-1 max-w-sm">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <Input
+                            type="text"
+                            placeholder="Rechercher par nom, email, rôle..."
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            className="pl-9 h-9 text-sm rounded-xl border-slate-200"
+                        />
+                    </div>
+                </div>
                 <Dialog open={isOpen} onOpenChange={setIsOpen}>
                     <DialogTrigger asChild>
                         <Button className="bg-blue-600 text-white gap-2">
@@ -122,13 +145,13 @@ export function UserManagement({ users }: { users: User[] }) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {users.length === 0 ? (
+                        {filteredUsers.length === 0 ? (
                             <tr>
                                 <td colSpan={4} className="p-20 text-center text-slate-400">
-                                    Aucun utilisateur trouvé.
+                                    {search ? `Aucun résultat pour "${search}"` : 'Aucun utilisateur trouvé.'}
                                 </td>
                             </tr>
-                        ) : users.map(user => (
+                        ) : filteredUsers.map(user => (
                             <tr key={user.id} className="group hover:bg-slate-50/50 transition-colors">
                                 <td className="p-6">
                                     <div className="flex items-center gap-4">

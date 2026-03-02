@@ -30,7 +30,7 @@ export default async function DashboardPage() {
     }
 
     // Role-based redirection for non-apprentices
-    if (session.user.role === 'admin') redirect('/admin/supervision')
+    if (session.user.role === 'admin') redirect('/admin')
     if (session.user.role === 'super_admin') redirect('/super-admin/leads')
     if (session.user.role === 'formateur') redirect('/formateur')
     if (session.user.role === 'tutor') redirect('/tutor')

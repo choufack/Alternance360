@@ -178,3 +178,54 @@ export async function generateTSFForPromotionAction(promotionId: string) {
         return { error: result.error || "Erreur inconnue" };
     }
 }
+
+export async function notifyStudent(contractId: string) {
+    const session = await auth();
+    if (!session?.user?.id) return { error: "Non autorisé" };
+
+    try {
+        const contract = await db.contract.findUnique({
+            where: { id: contractId },
+            include: {
+                user: { select: { id: true, email: true, firstName: true, lastName: true, fullName: true } }
+            }
+        });
+
+        if (!contract || !contract.user) return { error: "Contrat ou apprenti introuvable" };
+
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:2222";
+        const livretUrl = `${appUrl}/dashboard/livret`;
+
+        const { sendEmail } = await import("@/lib/email");
+        await sendEmail(
+            contract.user.email,
+            "Votre parcours de formation est prêt 🎓",
+            `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b;">
+                <h1 style="color: #10b981; font-size: 28px; font-weight: 900;">Bonjour ${contract.user.firstName || contract.user.fullName} 👋</h1>
+                <p style="font-size: 16px; line-height: 1.6; color: #475569;">
+                    Votre <strong>Tableau Stratégique de Formation (TSF)</strong> a été préparé par votre centre de formation.
+                    Vous pouvez dès maintenant consulter votre parcours et signer votre livret en ligne.
+                </p>
+                <div style="margin: 32px 0;">
+                    <a href="${livretUrl}"
+                       style="display: inline-block; background: #10b981; color: white; padding: 14px 28px;
+                              text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px;">
+                        👉 Accéder à mon livret
+                    </a>
+                </div>
+                <p style="font-size: 13px; color: #94a3b8;">
+                    Cet email vous a été envoyé par votre centre de formation. Si vous avez des questions, contactez votre formateur.
+                </p>
+            </div>
+            `
+        );
+
+        await logAuditEvent("NOTIFY_STUDENT", "Contract", contractId, { userId: contract.user.id });
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Notify Student Error:", error);
+        return { error: error.message || "Erreur lors de l'envoi de la notification" };
+    }
+}

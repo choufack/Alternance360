@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { createFiliere, deleteFiliere, updateFiliere } from "@/app/actions/filieres";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 export default async function FilieresPage() {
     const session = await auth();
@@ -106,7 +107,15 @@ export default async function FilieresPage() {
                     <TableBody>
                         {filieres.map((filiere) => (
                             <TableRow key={filiere.id}>
-                                <TableCell className="font-medium">{filiere.name}</TableCell>
+                                <TableCell className="font-medium">
+                                    <Link
+                                        href={`/admin/filieres/${filiere.id}`}
+                                        className="font-bold text-slate-900 hover:text-emerald-600 hover:underline transition-colors"
+                                    >
+                                        {filiere.name}
+                                    </Link>
+                                </TableCell>
+
                                 <TableCell className="text-slate-500">{filiere.referentielId ? "Lié" : "Non lié"}</TableCell>
                                 <TableCell>{filiere._count.promotions} promos</TableCell>
                                 <TableCell className="text-right flex justify-end gap-2">

@@ -11,7 +11,6 @@ import {
     Wrench,
     Settings,
     GraduationCap,
-    BarChart3,
     Shield,
     ClipboardCheck,
     Briefcase
@@ -23,7 +22,6 @@ const navigation = [
     { name: 'Tableau de bord', href: '/admin', icon: LayoutDashboard },
     { name: 'Portail Audit', href: '/admin/audit', icon: ClipboardCheck },
     { name: 'Gestion Rôles', href: '/admin/settings/roles', icon: Shield },
-    { name: 'Supervision Flux', href: '/admin/supervision', icon: BarChart3 },
     { name: 'Utilisateurs', href: '/admin/users', icon: Users },
     { name: 'Contrats', href: '/admin/contracts', icon: FileText },
     { name: 'Suivi Apprentis', href: '/admin/suivi', icon: GraduationCap },

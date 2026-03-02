@@ -14,7 +14,7 @@ export default async function ImportPage() {
     })
 
     if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-        redirect('/admin/supervision')
+        redirect('/admin')
     }
 
     // Note: In this local setup, the tenant_id might be the same for everyone

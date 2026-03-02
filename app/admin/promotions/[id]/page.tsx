@@ -5,12 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-    ExternalLink, Search, FileText, ArrowLeft, Calendar,
-    Users, ChevronRight, Wand2, MoreHorizontal, GraduationCap
+    FileText, ArrowLeft, Calendar,
+    Users, Wand2, GraduationCap
 } from "lucide-react"
 import Link from "next/link"
-import { Input } from "@/components/ui/input"
-import { BulkTSFGenerator } from "@/components/pedagogie/bulk-tsf-generator"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import {
@@ -21,18 +19,10 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
 import { TSFGrid } from "@/components/pedagogie/tsf-builder"
 import { generateTSFForPromotionAction } from "@/app/actions/promotions"
-
 import { TSFModalWrapper } from "@/components/pedagogie/tsf-modal-wrapper"
+import { NotifyStudentButton } from "@/components/pedagogie/notify-student-button"
 
 // Helper to fetch competences for a contract (moved outside component or kept here)
 async function getCompetencesForContract(referentielId: string | null) {
@@ -92,11 +82,11 @@ export default async function PromotionDetailPage({
                 },
                 select: {
                     id: true,
-                    referentielId: true, // Needed for prefetch check if we wanted, but logic moved
+                    referentielId: true,
                     tsfMapping: {
-                        select: { status: true } // Just check existence/status
+                        select: { status: true }
                     },
-                    periodes: true // Needed if we want to pass periods to row? No, only for focused.
+                    periodes: { select: { id: true } }
                 },
                 orderBy: { createdAt: 'desc' },
                 take: 1
@@ -223,19 +213,22 @@ export default async function PromotionDetailPage({
                                     apprentices.map((apprentice) => {
                                         const contract = apprentice.contracts[0]
                                         const hasMapping = contract && contract.tsfMapping.length > 0
+                                        const acquis = contract?.tsfMapping.filter(m => m.status === 'ACQUIS').length ?? 0
+                                        const total = contract?.tsfMapping.length ?? 0
+                                        const progressPct = total > 0 ? Math.round((acquis / total) * 100) : 0
 
                                         return (
                                             <TableRow key={apprentice.id}>
                                                 <TableCell>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xs text-slate-600">
+                                                    <Link href={`/admin/users/${apprentice.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity group">
+                                                        <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xs text-slate-600 group-hover:bg-emerald-50 group-hover:text-emerald-700 transition-colors">
                                                             {apprentice.firstName?.[0]}{apprentice.lastName?.[0]}
                                                         </div>
                                                         <div>
-                                                            <div className="font-semibold">{apprentice.firstName} {apprentice.lastName}</div>
+                                                            <div className="font-semibold text-slate-900 group-hover:text-emerald-700 transition-colors">{apprentice.firstName} {apprentice.lastName}</div>
                                                             <div className="text-xs text-slate-500">{apprentice.email}</div>
                                                         </div>
-                                                    </div>
+                                                    </Link>
                                                 </TableCell>
                                                 <TableCell>
                                                     {hasMapping ? (
@@ -249,21 +242,34 @@ export default async function PromotionDetailPage({
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {/* Placeholder for progress bar */}
-                                                    <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                        <div className="h-full bg-emerald-500 w-[0%]" />
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-emerald-500 rounded-full transition-all"
+                                                                style={{ width: `${progressPct}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-xs font-bold text-slate-500">{progressPct}%</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {hasMapping ? (
-                                                        <Button size="sm" variant="outline" asChild>
-                                                            <Link href={`?studentId=${apprentice.id}`} scroll={false}>
-                                                                Gérer TSF
-                                                            </Link>
-                                                        </Button>
-                                                    ) : (
-                                                        <span className="text-xs text-slate-400 italic mr-2">Générer d'abord</span>
-                                                    )}
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {contract && (
+                                                            <NotifyStudentButton
+                                                                contractId={contract.id}
+                                                                studentName={`${apprentice.firstName} ${apprentice.lastName}`}
+                                                            />
+                                                        )}
+                                                        {hasMapping ? (
+                                                            <Button size="sm" variant="outline" asChild>
+                                                                <Link href={`?studentId=${apprentice.id}`} scroll={false}>
+                                                                    Gérer TSF
+                                                                </Link>
+                                                            </Button>
+                                                        ) : (
+                                                            <span className="text-xs text-slate-400 italic">Générer d'abord</span>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         )

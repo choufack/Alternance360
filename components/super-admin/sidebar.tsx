@@ -41,7 +41,7 @@ const navigation = [
             { name: 'Tenants (CFA)', href: '/super-admin/tenants', icon: Building2 },
             { name: 'Leads entrants', href: '/super-admin/leads', icon: Inbox },
             { name: 'Support Center', href: '/super-admin/support', icon: MessageSquare },
-            { name: 'Supervision Flux', href: '/admin/supervision', icon: BarChart3 },
+            { name: 'Tableau de Bord CFA', href: '/admin', icon: LayoutDashboard },
         ]
     },
     {

@@ -126,7 +126,13 @@ export default async function PromotionsPage() {
                             <TableRow key={promo.id}>
                                 <TableCell className="font-bold flex items-center gap-2">
                                     <Calendar size={14} className="text-slate-400" />
-                                    {promo.name} <span className="text-slate-400 font-normal">({promo.year})</span>
+                                    <Link
+                                        href={`/admin/promotions/${promo.id}`}
+                                        className="hover:text-emerald-600 hover:underline transition-colors"
+                                    >
+                                        {promo.name}
+                                    </Link>
+                                    <span className="text-slate-400 font-normal">({promo.year})</span>
                                 </TableCell>
                                 <TableCell>{promo.filiere.name}</TableCell>
                                 <TableCell className="text-sm text-slate-500">
