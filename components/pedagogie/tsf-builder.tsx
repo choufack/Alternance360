@@ -31,9 +31,10 @@ interface TSFGridProps {
     competences: Competence[] // flattened list
     initialMappings: TSFMapping[]
     isAdmin?: boolean
+    token?: string
 }
 
-export function TSFGrid({ contractId, periods, competences, initialMappings, isAdmin = false }: TSFGridProps) {
+export function TSFGrid({ contractId, periods, competences, initialMappings, isAdmin = false, token }: TSFGridProps) {
     const [mappings, setMappings] = useState<TSFMapping[]>(initialMappings)
     const [loadingId, setLoadingId] = useState<string | null>(null)
     const router = useRouter()
@@ -85,7 +86,8 @@ export function TSFGrid({ contractId, periods, competences, initialMappings, isA
             competenceId: compId,
             periodId,
             flag_cfa: nextCFA,
-            flag_entreprise: nextENT
+            flag_entreprise: nextENT,
+            token
         })
 
         setLoadingId(null)
@@ -106,7 +108,7 @@ export function TSFGrid({ contractId, periods, competences, initialMappings, isA
     }
 
     const handleDescriptionUpdate = async (competenceId: string, newDescription: string) => {
-        const result = await updateTSFDescription(contractId, competenceId, newDescription)
+        const result = await updateTSFDescription(contractId, competenceId, newDescription, token)
         if (result.error) {
             toast.error(result.error)
         } else {

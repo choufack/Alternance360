@@ -4,6 +4,8 @@ import db from '@/lib/db'
 import { auth } from '@/auth'
 import { revalidatePath } from 'next/cache'
 
+import { createHash } from 'crypto'
+
 interface TSFUpdatePayload {
     mappingId?: string
     contractId: string
@@ -11,15 +13,35 @@ interface TSFUpdatePayload {
     periodId: string
     flag_cfa: boolean
     flag_entreprise: boolean
+    token?: string
+}
+
+async function verifyAccess(contractId: string, token?: string) {
+    const session = await auth()
+    if (session?.user) return true
+
+    if (token) {
+        const tokenHash = createHash('sha256').update(token).digest('hex')
+        const magicToken = await db.magicToken.findUnique({
+            where: { tokenHash },
+            select: { contractId: true, expiresAt: true }
+        })
+
+        if (magicToken && magicToken.contractId === contractId && new Date() <= magicToken.expiresAt) {
+            return true
+        }
+    }
+
+    return false
 }
 
 export async function updateTSFCell(payload: TSFUpdatePayload) {
-    const session = await auth()
-    if (!session?.user) throw new Error('Unauthorized')
+    const { contractId, competenceId, periodId, flag_cfa, flag_entreprise, token } = payload
+
+    const hasAccess = await verifyAccess(contractId, token)
+    if (!hasAccess) throw new Error('Unauthorized')
 
     try {
-        const { contractId, competenceId, periodId, flag_cfa, flag_entreprise } = payload
-
         // Upsert Logic:
         await db.tSFMapping.upsert({
             where: {
@@ -44,7 +66,8 @@ export async function updateTSFCell(payload: TSFUpdatePayload) {
             }
         })
 
-        revalidatePath(`/dashboard/contracts/${contractId}`)
+        revalidatePath(`/pedagogie/tsf`)
+        revalidatePath(`/admin/promotions`) // For admins tracking progress
         return { success: true }
     } catch (e: any) {
         console.error('Update TSF Cell Failed:', e)
@@ -52,16 +75,11 @@ export async function updateTSFCell(payload: TSFUpdatePayload) {
     }
 }
 
-export async function updateTSFDescription(contractId: string, competenceId: string, description: string) {
-    const session = await auth()
-    if (!session?.user) throw new Error('Unauthorized')
+export async function updateTSFDescription(contractId: string, competenceId: string, description: string, token?: string) {
+    const hasAccess = await verifyAccess(contractId, token)
+    if (!hasAccess) throw new Error('Unauthorized')
 
     try {
-        // We need to update ALL mappings for this contract/competence to keep consistency
-        // OR just update the ones that exist. 
-        // If no mapping exists yet for a period, we can't store the description there yet unless we create a dummy one.
-        // BETTER APPROACH: Find all existing mappings and update them.
-
         // 1. Find existing mappings
         const mappings = await db.tSFMapping.findMany({
             where: {
@@ -71,12 +89,6 @@ export async function updateTSFDescription(contractId: string, competenceId: str
         })
 
         if (mappings.length === 0) {
-            // Edge case: No TSF cells active for this competence yet.
-            // We might need to handle this by creating a placeholder or just erroring?
-            // Actually, if TSF is generated, there should be mappings (even if flags are false).
-            // If not, we can't save the custom description easily without a meaningful mapping record.
-            // BUT, usually TSF is fully pre-generated with empty flags?
-            // Let's assume we update any found.
             return { error: "Aucune entrée TSF trouvée pour cette compétence." }
         }
 
@@ -91,7 +103,8 @@ export async function updateTSFDescription(contractId: string, competenceId: str
             }
         })
 
-        revalidatePath(`/admin/users`)
+        revalidatePath(`/pedagogie/tsf`)
+        revalidatePath(`/admin/promotions`)
         return { success: true }
 
     } catch (e: any) {

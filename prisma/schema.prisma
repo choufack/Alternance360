@@ -63,8 +63,10 @@ model User {
   contracts            Contract[]             @relation("ApprenticeContracts")
   contractsTutored     Contract[]             @relation("TutorContracts")
   contractsManaged     Contract[]             @relation("FormateurContracts")
-  evaluationsValidated EvaluationIndicateur[] @relation("TutorEvaluations")
-  evaluationsReceived  EvaluationIndicateur[] @relation("ApprenticeEvaluations")
+  evaluationsValidated     EvaluationIndicateur[] @relation("TutorEvaluations")
+  evaluationsReceived      EvaluationIndicateur[] @relation("ApprenticeEvaluations")
+  compEvaluationsValidated EvaluationCompetence[] @relation("TutorCompEvaluations")
+  compEvaluationsReceived  EvaluationCompetence[] @relation("ApprenticeCompEvaluations")
   reportsGenerated     HistoricalReport[]
   initialAssessments   InitialAssessment[]
   magicTokens          MagicToken[]
@@ -154,6 +156,7 @@ model Competence {
   positionings Positioning[]
   proofs       Proof[]
   tsfMappings  TSFMapping[]
+  evaluations  EvaluationCompetence[]
 }
 
 model Indicateur {
@@ -164,6 +167,27 @@ model Indicateur {
   evaluations  EvaluationIndicateur[]
   items        EvaluationItem[]
   competence   Competence             @relation(fields: [competenceId], references: [id], onDelete: Cascade)
+}
+
+model EvaluationCompetence {
+  id            String     @id @default(uuid())
+  status        String     @default("PENDING")
+  comment       String?
+  isSigned      Boolean    @default(false)
+  signedAt      DateTime?
+  signatureData String?
+  validatorId   String?
+  apprenticeId  String?
+  contractId    String
+  competenceId  String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  validator     User?      @relation("TutorCompEvaluations", fields: [validatorId], references: [id])
+  apprentice    User?      @relation("ApprenticeCompEvaluations", fields: [apprenticeId], references: [id])
+  contract      Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  competence    Competence @relation(fields: [competenceId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, competenceId])
 }
 
 model EvaluationIndicateur {
@@ -227,7 +251,8 @@ model Contract {
   user               User?                  @relation("ApprenticeContracts", fields: [userId], references: [id], onDelete: Cascade)
   tutor              User?                  @relation("TutorContracts", fields: [tutorId], references: [id])
   formateur          User?                  @relation("FormateurContracts", fields: [formateurId], references: [id])
-  tsfEvaluations     EvaluationIndicateur[]
+  tsfEvaluations      EvaluationIndicateur[]
+  evaluationCompetences EvaluationCompetence[]
   reports            HistoricalReport[]
   initialAssessments InitialAssessment[]
   livrets            Livret[]
@@ -248,6 +273,7 @@ model Period {
   contractId  String
   contract    Contract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
   tsfMappings TSFMapping[]
+  magicTokens MagicToken[]
 }
 
 model TSFMapping {
@@ -571,9 +597,11 @@ model MagicToken {
   expiresAt  DateTime
   contractId String
   userId     String
+  periodId   String?
   createdAt  DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  period     Period?  @relation(fields: [periodId], references: [id])
 }
 
 model RemediationPlan {

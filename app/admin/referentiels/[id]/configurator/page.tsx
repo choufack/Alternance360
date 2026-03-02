@@ -2,6 +2,9 @@ import { auth } from '@/auth'
 import db from '@/lib/db'
 import { redirect, notFound } from 'next/navigation'
 import { ConfiguratorClient } from '@/components/admin/configurator-client'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface ConfiguratorPageProps {
     params: Promise<{ id: string }>
@@ -43,7 +46,15 @@ export default async function ConfiguratorPage({ params }: ConfiguratorPageProps
 
     return (
         <div className="min-h-screen bg-slate-50">
-            <ConfiguratorClient referentiel={referentiel} />
+            <div className="container mx-auto py-6 px-4">
+                <Button variant="ghost" size="sm" asChild className="text-slate-500 hover:text-slate-900 mb-4 -ml-2">
+                    <Link href="/admin/referentiels" className="flex items-center gap-2">
+                        <ArrowLeft size={16} />
+                        Retour aux référentiels
+                    </Link>
+                </Button>
+                <ConfiguratorClient referentiel={referentiel} />
+            </div>
         </div>
     )
 }

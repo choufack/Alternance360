@@ -23,6 +23,7 @@ import { TSFGrid } from "@/components/pedagogie/tsf-builder"
 import { generateTSFForPromotionAction } from "@/app/actions/promotions"
 import { TSFModalWrapper } from "@/components/pedagogie/tsf-modal-wrapper"
 import { NotifyStudentButton } from "@/components/pedagogie/notify-student-button"
+import { BulkNotifyApprenticesButton } from "@/components/pedagogie/bulk-notify-apprentices-button"
 
 // Helper to fetch competences for a contract (moved outside component or kept here)
 async function getCompetencesForContract(referentielId: string | null) {
@@ -86,7 +87,7 @@ export default async function PromotionDetailPage({
                     tsfMapping: {
                         select: { status: true }
                     },
-                    periodes: { select: { id: true } }
+                    periodes: { select: { id: true, label: true } }
                 },
                 orderBy: { createdAt: 'desc' },
                 take: 1
@@ -181,6 +182,23 @@ export default async function PromotionDetailPage({
                                 <Wand2 size={16} className="mr-2" /> Générer les TSF
                             </Button>
                         </form>
+
+                        {/* Extract unique period labels for the promotion */}
+                        {(() => {
+                            const labels = new Set<string>()
+                            apprentices.forEach(a => {
+                                a.contracts[0]?.periodes?.forEach(p => {
+                                    if ((p as any).label) labels.add((p as any).label)
+                                })
+                            })
+                            return (
+                                <BulkNotifyApprenticesButton
+                                    promotionId={promotion.id}
+                                    apprenticeCount={apprentices.length}
+                                    availablePeriods={Array.from(labels)}
+                                />
+                            )
+                        })()}
                     </div>
                 </div>
             </div>

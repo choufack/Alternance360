@@ -1,20 +1,43 @@
+
 import { TSFGrid } from '@/components/pedagogie/tsf-builder'
 import { auth } from '@/auth'
 import db from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { AlertCircle } from 'lucide-react'
+import { createHash } from 'crypto'
 
-export default async function TSFPage() {
+export default async function TSFPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
+    const { token } = await searchParams
     const session = await auth()
-    if (!session || !session.user || !session.user.id) {
+
+    let userId: string | null = null
+    let contractIdFromToken: string | null = null
+
+    // 1. Resolve Access (Session or Token)
+    if (token) {
+        const tokenHash = createHash('sha256').update(token).digest('hex')
+        const magicToken = await db.magicToken.findUnique({
+            where: { tokenHash },
+            select: { userId: true, contractId: true, expiresAt: true }
+        })
+
+        if (magicToken && new Date() <= magicToken.expiresAt) {
+            userId = magicToken.userId
+            contractIdFromToken = magicToken.contractId
+        }
+    }
+
+    if (!userId && session?.user?.id) {
+        userId = session.user.id
+    }
+
+    if (!userId) {
         redirect('/login')
     }
 
-    const userId = session.user.id
-
-    // 1. Fetch Contract & TSF Data
+    // 2. Fetch Contract & TSF Data
     const contract = await db.contract.findFirst({
-        where: { userId: userId },
+        where: contractIdFromToken ? { id: contractIdFromToken } : { userId: userId },
         include: {
             periodes: { orderBy: { orderIndex: 'asc' } },
             tsfMapping: true,
@@ -52,16 +75,18 @@ export default async function TSFPage() {
         )
     }
 
-    // 2. Format Data for Grid
+    // 3. Format Data for Grid
     const periods = contract.periodes.map(p => ({
         id: p.id,
-        label: p.label
+        label: p.label,
+        startDate: p.startDate,
+        endDate: p.endDate
     }))
 
     const competences = contract.referentiel?.blocs?.flatMap(bloc =>
         bloc.competences.map(comp => ({
             id: comp.id,
-            description: comp.description,
+            description: comp.description || '',
             bloc_title: bloc.title
         }))
     ) || []
@@ -72,7 +97,7 @@ export default async function TSFPage() {
         flag_cfa: m.flagCfa,
         flag_entreprise: m.flagEntreprise,
         status: m.status
-    })).filter(m => m.period_id !== '') // Filter out unmapped if any
+    })).filter(m => m.period_id !== '')
 
     return (
         <div className="min-h-screen bg-slate-50 py-12 px-4">
@@ -88,6 +113,7 @@ export default async function TSFPage() {
                         periods={periods}
                         competences={competences}
                         initialMappings={mappings}
+                        token={token}
                     />
                 </div>
             </div>

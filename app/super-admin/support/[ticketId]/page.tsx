@@ -2,7 +2,9 @@ import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { getTicketDetails } from '@/app/actions/tickets'
 import { TicketDetailClient } from '@/components/dashboard/support/ticket-detail-client'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 
 export default async function AdminTicketDetailPage({ params }: { params: Promise<{ ticketId: string }> }) {
     const { ticketId } = await params
@@ -22,10 +24,18 @@ export default async function AdminTicketDetailPage({ params }: { params: Promis
     }
 
     return (
-        <TicketDetailClient
-            ticket={ticket}
-            currentUserId={session.user.id!}
-            currentUserRole='super_admin'
-        />
+        <div className="container mx-auto py-6 px-4 space-y-4">
+            <Button variant="ghost" size="sm" asChild className="text-slate-500 hover:text-slate-900 -ml-2">
+                <Link href="/super-admin/support" className="flex items-center gap-2">
+                    <ArrowLeft size={16} />
+                    Retour aux tickets
+                </Link>
+            </Button>
+            <TicketDetailClient
+                ticket={ticket}
+                currentUserId={session.user.id!}
+                currentUserRole='super_admin'
+            />
+        </div>
     )
 }

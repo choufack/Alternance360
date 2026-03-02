@@ -34,9 +34,13 @@ export async function internalGenerateTSF(contractId: string, overrideStartDate?
         // 2. Generate Periods (Algorithm: 6 months slices)
         const startDate = overrideStartDate || new Date(contract.startDate)
         const endDate = overrideEndDate || new Date(contract.endDate)
-        const durationMonths = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth())
 
-        const nbPeriods = Math.ceil(durationMonths / 6)
+        if (startDate >= endDate) {
+            throw new Error(`Dates invalides : la date de début (${startDate.toLocaleDateString()}) doit être avant la date de fin (${endDate.toLocaleDateString()}).`)
+        }
+
+        const durationMonths = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth())
+        const nbPeriods = Math.max(1, Math.ceil(durationMonths / 6))
         const periodsIds: string[] = []
 
         // Perform everything in a transaction for safety
@@ -48,7 +52,12 @@ export async function internalGenerateTSF(contractId: string, overrideStartDate?
             for (let i = 1; i <= nbPeriods; i++) {
                 const periodEnd = new Date(internalDate)
                 periodEnd.setMonth(periodEnd.getMonth() + 6)
-                const actualEnd = periodEnd > endDate ? endDate : periodEnd
+
+                // Ensure the last period ends exactly at the contract end date
+                // and that we don't create periods starting after the end date
+                if (internalDate >= endDate && i > 1) break;
+
+                const actualEnd = (periodEnd > endDate || i === nbPeriods) ? endDate : periodEnd
 
                 const p = await tx.period.create({
                     data: {

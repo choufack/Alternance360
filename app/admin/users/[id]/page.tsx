@@ -16,6 +16,7 @@ import {
     GraduationCap,
     Clock,
     ArrowRight,
+    ArrowLeft,
     Sparkles
 } from 'lucide-react'
 import Link from 'next/link'
@@ -51,7 +52,17 @@ export default async function ApprenticeProfilePage({ params }: { params: Promis
     const hasJourney = (activeContract?.tsfMapping?.length ?? 0) > 0
 
     return (
-        <div className="container mx-auto py-12 px-4 max-w-6xl space-y-12">
+        <div className="container mx-auto py-12 px-4 max-w-6xl space-y-8">
+            {/* Back Navigation */}
+            <div className="-mb-4">
+                <Button variant="ghost" size="sm" asChild className="text-slate-500 hover:text-slate-900 -ml-2">
+                    <Link href="/admin/users" className="flex items-center gap-2">
+                        <ArrowLeft size={16} />
+                        Retour à la liste
+                    </Link>
+                </Button>
+            </div>
+
             {/* Header / Identity */}
             <header className="flex flex-col md:flex-row items-center gap-8 bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/40">
                 <div className="w-32 h-32 rounded-[2.5rem] bg-slate-100 flex items-center justify-center text-slate-400 border-4 border-white shadow-inner">
