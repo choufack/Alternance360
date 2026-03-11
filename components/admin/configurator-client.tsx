@@ -57,6 +57,7 @@ type Bloc = {
     id: string
     title: string
     orderIndex: number
+    periodIndex: number
     competences: Competence[]
 }
 
@@ -254,7 +255,7 @@ export function ConfiguratorClient({ referentiel }: { referentiel: Referentiel }
 
         try {
             const currentCompetences = selectedBloc?.competences || []
-            const result = await updateReferentielStructure(selectedBlocId, currentCompetences)
+            const result = await updateReferentielStructure(selectedBlocId, currentCompetences, selectedBloc?.periodIndex)
 
             if (result.success) {
                 setHasChanges(false)
@@ -464,10 +465,32 @@ export function ConfiguratorClient({ referentiel }: { referentiel: Referentiel }
                         {/* Bloc Header */}
                         <header className="flex items-center justify-between mb-8">
                             <div>
-                                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 mb-2">
-                                    Bloc {blocs.findIndex(b => b.id === selectedBlocId) + 1}
-                                </Badge>
-                                <h2 className="text-3xl font-black text-slate-900">{selectedBloc.title}</h2>
+                                <div className="flex items-center gap-3">
+                                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                                        Bloc {blocs.findIndex(b => b.id === selectedBlocId) + 1}
+                                    </Badge>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Période cible :</span>
+                                        <select
+                                            value={selectedBloc.periodIndex}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value)
+                                                setBlocs(prev => prev.map(b => b.id === selectedBlocId ? { ...b, periodIndex: val } : b))
+                                                setHasChanges(true)
+                                            }}
+                                            className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                        >
+                                            <option value={0}>Automatique</option>
+                                            <option value={1}>Période 1</option>
+                                            <option value={2}>Période 2</option>
+                                            <option value={3}>Période 3</option>
+                                            <option value={4}>Période 4</option>
+                                            <option value={5}>Période 5</option>
+                                            <option value={6}>Période 6</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <h2 className="text-3xl font-black text-slate-900 mt-2">{selectedBloc.title}</h2>
                             </div>
 
                             <Button

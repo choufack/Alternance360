@@ -1,109 +1,124 @@
-import { verifyMagicToken } from '@/app/actions/tutor'
-import { notFound } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { AlertTriangle, Info } from 'lucide-react'
-import { TutorMagicValidation } from '@/components/tutor/tutor-magic-validation'
+import { createHash } from 'crypto'
 import db from '@/lib/db'
+import { notFound } from 'next/navigation'
+import { Card, CardContent } from '@/components/ui/card'
+import { ShieldCheck, GraduationCap, UserIcon } from 'lucide-react'
+import { TutorEvalForm } from '@/components/pedagogie/tutor-eval-form'
 
 export default async function TutorAccessPage({ params }: { params: Promise<{ token: string }> }) {
     const { token } = await params
-    const data = await verifyMagicToken(token)
 
-    if (!data) {
+    // 1. Verify Token
+    const tokenHash = createHash('sha256').update(token).digest('hex')
+    const magicToken = await db.magicToken.findUnique({
+        where: { tokenHash },
+        include: {
+            contract: {
+                include: { user: true }
+            },
+            period: true
+        } as any
+    })
+
+    if (!magicToken || magicToken.type !== 'TUTOR_ACCESS' || new Date() > magicToken.expiresAt) {
         return notFound()
     }
 
-    const { tutor, contract, apprentice } = data
-    if (!apprentice) return notFound()
+    const anyMagicToken = magicToken as any
+    const { contract, period: tokenPeriod } = anyMagicToken
 
-    const proofs = await db.proof.findMany({
-        where: { userId: apprentice.id, status: 'PENDING' },
-        include: { competence: true },
-        orderBy: { createdAt: 'desc' }
+    if (!tokenPeriod) return notFound() // Tutor tokens MUST be linked to a period
+
+    // 2. Fetch Competencies for this Period via TSFMapping
+    const mappings = await db.tSFMapping.findMany({
+        where: {
+            contractId: contract.id,
+            periodId: tokenPeriod.id,
+            OR: [
+                { flagCfa: true },
+                { flagEntreprise: true }
+            ]
+        },
+        include: {
+            competence: {
+                include: {
+                    bloc: true,
+                    indicateurs: true
+                }
+            }
+        }
+    })
+
+    // 3. Fetch existing evaluations (at Competence level)
+    const existingEvaluations = await (db as any).evaluationCompetence.findMany({
+        where: {
+            contractId: contract.id,
+            competenceId: { in: mappings.map(m => m.competenceId) }
+        }
+    })
+
+    const competencies = mappings.map(m => {
+        const evalData = existingEvaluations.find((e: any) => e.competenceId === m.competenceId)
+        return {
+            id: m.competence.id,
+            description: m.competenceDescription || m.competence.description,
+            blocTitle: m.blocTitle || m.competence.bloc.title,
+            apprenticeStatus: evalData?.status || 'PENDING',
+            apprenticeComment: evalData?.comment || '',
+            tutorStatus: evalData?.tutorStatus || '',
+            tutorComment: evalData?.tutorComment || '',
+            indicateurs: m.competence.indicateurs.map(ind => ({
+                id: ind.id,
+                description: ind.description
+            }))
+        }
     })
 
     return (
-        <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-            <div className="mx-auto max-w-4xl">
-                {/* Header Branding */}
-                <div className="mb-8 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900">{contract.tenant.name}</h1>
-                        <p className="text-slate-500 text-sm">Espace Tuteur Entreprise</p>
-                    </div>
-                </div>
-
-                <div className="grid gap-6 md:grid-cols-3">
-                    {/* Sidebar Info */}
-                    <div className="space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg">Apprenti</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
-                                        {apprentice?.fullName?.split(' ').map((n: string) => n[0]).join('')}
-                                    </div>
-                                    <div>
-                                        <p className="font-medium">{apprentice?.fullName}</p>
-                                        <p className="text-xs text-slate-500">{apprentice?.email}</p>
-                                    </div>
-                                </div>
-                                <div className="text-sm">
-                                    <p className="text-slate-500">Formation</p>
-                                    <p className="font-semibold">{contract.referentiel?.title || 'RNCP non spécifié'}</p>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="bg-amber-50 border-amber-200">
-                            <CardContent className="pt-6">
-                                <div className="flex gap-3">
-                                    <AlertTriangle className="text-amber-600 h-5 w-5 shrink-0" />
-                                    <div className="text-sm">
-                                        <p className="font-bold text-amber-900">Action Requise</p>
-                                        <p className="text-amber-800">Votre validation est nécessaire pour clore la période actuelle du livret.</p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+        <div className="min-h-screen bg-slate-50 py-12 px-4">
+            <div className="max-w-4xl mx-auto space-y-8">
+                {/* Header Section */}
+                <div className="bg-white p-8 md:p-12 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+                        <ShieldCheck size={180} />
                     </div>
 
-                    {/* Main Content */}
-                    <div className="md:col-span-2 space-y-6">
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between">
-                                <CardTitle>Preuves de compétences</CardTitle>
-                                <Badge variant="outline">{contract.tsfStatus}</Badge>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-slate-500 text-sm mb-6">
-                                    Veuillez passer en revue les activités réalisées par l'apprenti en entreprise et valider sa progression.
+                    <div className="relative z-10 space-y-6">
+                        <div className="flex items-center gap-2 text-indigo-600 font-bold uppercase tracking-widest text-[10px]">
+                            <ShieldCheck size={14} />
+                            Portail de Validation Tuteur
+                        </div>
+
+                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                            <div>
+                                <h1 className="text-4xl font-black text-slate-900 mb-2 leading-tight">
+                                    Validation {tokenPeriod.label}
+                                </h1>
+                                <p className="text-slate-500 font-medium tracking-tight text-lg">
+                                    Évaluez les compétences professionnelles de votre apprenti.
                                 </p>
+                            </div>
 
-                                <TutorMagicValidation
-                                    proofs={proofs}
-                                    contractId={contract.id}
-                                    apprentice={apprentice}
-                                />
-
-                                <div className="mt-8 pt-6 border-t">
-                                    <h3 className="font-bold mb-4">Avis Global du Tuteur</h3>
-                                    <textarea
-                                        className="w-full min-h-[100px] p-3 border rounded-md text-sm focus:ring-2 focus:ring-indigo-500 transition-all border-slate-200"
-                                        placeholder="Commentaires sur le comportement, l'implication and les résultats..."
-                                    />
-                                    <Button className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700">
-                                        Signer and Valider le Livret pour cette période
-                                    </Button>
+                            <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 min-w-[240px]">
+                                <div className="text-[10px] font-black uppercase text-slate-400 mb-2 flex items-center gap-1.5">
+                                    <GraduationCap size={12} />
+                                    Apprenti
                                 </div>
-                            </CardContent>
-                        </Card>
+                                <div className="font-bold text-slate-900 text-lg">
+                                    {contract.user?.firstName} {contract.user?.lastName}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                {/* Form Section */}
+                <TutorEvalForm
+                    token={token}
+                    contractId={contract.id}
+                    periodId={tokenPeriod.id}
+                    competencies={competencies as any}
+                />
             </div>
         </div>
     )

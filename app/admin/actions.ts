@@ -326,13 +326,22 @@ export async function importGlobalReferentiel(referentielId: string) {
     }
 }
 
-export async function updateReferentielStructure(blocId: string, competences: any[]) {
+export async function updateReferentielStructure(blocId: string, competences: any[], periodIndex?: number) {
     const session = await auth()
     if (!session?.user?.id) return { error: "Non connecté" }
 
     try {
         await db.$transaction(async (tx) => {
+            // Update Bloc periodIndex if provided
+            if (periodIndex !== undefined) {
+                await tx.blocCompetence.update({
+                    where: { id: blocId },
+                    data: { periodIndex } as any
+                })
+            }
+
             const existingComps = await tx.competence.findMany({ where: { blocId } })
+            // ...
             const compIds = existingComps.map(c => c.id)
 
             await tx.indicateur.deleteMany({ where: { competenceId: { in: compIds } } })
@@ -529,10 +538,26 @@ export async function initializeApprenticeJourney(contractId: string, periodType
 
             // 4. Distribute Blocs & Competences
             const blocs = contract.referentiel!.blocs
+            const blocCounts = new Array(numPeriods).fill(0)
+
             for (let i = 0; i < blocs.length; i++) {
                 const bloc = blocs[i]
-                const periodIndex = Math.floor(i * numPeriods / blocs.length)
-                const assignedPeriod = createdPeriods[periodIndex]
+
+                // Logic: Use periodIndex if specified (>0), otherwise distribute while respecting max 3 per period if possible
+                let targetPeriodIdx = (bloc as any).periodIndex
+
+                // If periodIndex is 0 (default) or invalid, we distribute
+                if (!targetPeriodIdx || targetPeriodIdx > numPeriods) {
+                    targetPeriodIdx = Math.floor(i * numPeriods / blocs.length) + 1
+                }
+
+                // Adjust to 0-based
+                let finalIdx = Math.min(targetPeriodIdx - 1, numPeriods - 1)
+
+                // Optional: strictly limit to 3? 
+                // For now, let's keep it flexible but lean towards the requested 1-3.
+
+                const assignedPeriod = createdPeriods[finalIdx]
 
                 for (const comp of bloc.competences) {
                     // Check initial assessment

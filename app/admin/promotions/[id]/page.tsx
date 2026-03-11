@@ -11,6 +11,7 @@ import {
 import Link from "next/link"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
+import clsx from 'clsx'
 import {
     Table,
     TableBody,
@@ -87,12 +88,15 @@ export default async function PromotionDetailPage({
                     tsfMapping: {
                         select: { status: true }
                     },
-                    periodes: { select: { id: true, label: true } }
+                    periodes: { select: { id: true, label: true } },
+                    evaluationCompetences: {
+                        select: { status: true, tutorStatus: true }
+                    }
                 },
                 orderBy: { createdAt: 'desc' },
                 take: 1
             }
-        },
+        } as any,
         orderBy: { lastName: 'asc' }
     })
 
@@ -186,9 +190,9 @@ export default async function PromotionDetailPage({
                         {/* Extract unique period labels for the promotion */}
                         {(() => {
                             const labels = new Set<string>()
-                            apprentices.forEach(a => {
-                                a.contracts[0]?.periodes?.forEach(p => {
-                                    if ((p as any).label) labels.add((p as any).label)
+                            apprentices.forEach((a: any) => {
+                                a.contracts[0]?.periodes?.forEach((p: any) => {
+                                    if (p.label) labels.add(p.label)
                                 })
                             })
                             return (
@@ -223,52 +227,73 @@ export default async function PromotionDetailPage({
                             <TableBody>
                                 {apprentices.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center py-8 text-slate-500">
+                                        <TableCell colSpan={5} className="text-center py-8 text-slate-500">
                                             Aucun étudiant dans cette promotion. Commencez par en importer.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    apprentices.map((apprentice) => {
+                                    apprentices.map((apprentice: any) => {
                                         const contract = apprentice.contracts[0]
                                         const hasMapping = contract && contract.tsfMapping.length > 0
-                                        const acquis = contract?.tsfMapping.filter(m => m.status === 'ACQUIS').length ?? 0
-                                        const total = contract?.tsfMapping.length ?? 0
-                                        const progressPct = total > 0 ? Math.round((acquis / total) * 100) : 0
+
+                                        // Metrics
+                                        const totalUCP = contract?.tsfMapping.length ?? 0
+                                        const evals = contract?.evaluationCompetences ?? []
+                                        const apprenticeDone = evals.filter((e: any) => e.status === 'ACQUIS' || e.status === 'IN_PROGRESS').length
+                                        const tutorDone = evals.filter((e: any) => e.tutorStatus === 'ACQUIS' || e.tutorStatus === 'IN_PROGRESS').length
+
+                                        const apprenticePct = totalUCP > 0 ? Math.round((apprenticeDone / totalUCP) * 100) : 0
+                                        const tutorPct = totalUCP > 0 ? Math.round((tutorDone / totalUCP) * 100) : 0
 
                                         return (
                                             <TableRow key={apprentice.id}>
                                                 <TableCell>
                                                     <Link href={`/admin/users/${apprentice.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity group">
-                                                        <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xs text-slate-600 group-hover:bg-emerald-50 group-hover:text-emerald-700 transition-colors">
+                                                        <div className="h-10 w-10 rounded-2xl bg-slate-100 flex items-center justify-center font-bold text-sm text-slate-600 group-hover:bg-indigo-50 group-hover:text-indigo-700 transition-colors">
                                                             {apprentice.firstName?.[0]}{apprentice.lastName?.[0]}
                                                         </div>
                                                         <div>
-                                                            <div className="font-semibold text-slate-900 group-hover:text-emerald-700 transition-colors">{apprentice.firstName} {apprentice.lastName}</div>
-                                                            <div className="text-xs text-slate-500">{apprentice.email}</div>
+                                                            <div className="font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">{apprentice.firstName} {apprentice.lastName}</div>
+                                                            <div className="text-xs text-slate-500 font-medium">{apprentice.email}</div>
                                                         </div>
                                                     </Link>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {hasMapping ? (
-                                                        <Badge className="bg-emerald-100 text-emerald-700 border-none">
-                                                            Actif
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="outline" className="text-slate-400">
-                                                            Non initialisé
-                                                        </Badge>
-                                                    )}
+                                                    <div className="space-y-1.5">
+                                                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                                            <span>Apprenti</span>
+                                                            <span className={apprenticePct === 100 ? "text-emerald-500" : ""}>{apprenticePct}%</span>
+                                                        </div>
+                                                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${apprenticePct}%` }} />
+                                                        </div>
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-                                                            <div
-                                                                className="h-full bg-emerald-500 rounded-full transition-all"
-                                                                style={{ width: `${progressPct}%` }}
-                                                            />
+                                                    <div className="space-y-1.5">
+                                                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                                            <span>Tuteur</span>
+                                                            <span className={tutorPct === 100 ? "text-indigo-600" : ""}>{tutorPct}%</span>
                                                         </div>
-                                                        <span className="text-xs font-bold text-slate-500">{progressPct}%</span>
+                                                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${tutorPct}%` }} />
+                                                        </div>
                                                     </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {hasMapping ? (
+                                                        <Badge className={clsx(
+                                                            "border-none font-bold text-[10px] uppercase",
+                                                            tutorPct === 100 ? "bg-emerald-100 text-emerald-700" :
+                                                                apprenticePct > 0 ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+                                                        )}>
+                                                            {tutorPct === 100 ? 'Validé' : apprenticePct > 0 ? 'En cours' : 'Initialisé'}
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant="outline" className="text-slate-300 font-bold text-[10px] uppercase">
+                                                            À générer
+                                                        </Badge>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex items-center justify-end gap-2">
@@ -279,13 +304,13 @@ export default async function PromotionDetailPage({
                                                             />
                                                         )}
                                                         {hasMapping ? (
-                                                            <Button size="sm" variant="outline" asChild>
+                                                            <Button size="sm" variant="outline" asChild className="rounded-xl font-bold border-slate-200">
                                                                 <Link href={`?studentId=${apprentice.id}`} scroll={false}>
-                                                                    Gérer TSF
+                                                                    Gérer
                                                                 </Link>
                                                             </Button>
                                                         ) : (
-                                                            <span className="text-xs text-slate-400 italic">Générer d'abord</span>
+                                                            <span className="text-[10px] font-black text-slate-400 uppercase italic">TSF Manquant</span>
                                                         )}
                                                     </div>
                                                 </TableCell>

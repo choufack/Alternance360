@@ -1,10 +1,11 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import db from '@/lib/db'
-import { getApprenticeInactivity, getContractsHealthOverview } from '@/app/actions/supervision'
+import { getApprenticeInactivity, getContractsHealthOverview, getApprenticeProgressOverview } from '@/app/actions/supervision'
 import { InactivityMonitor } from '@/components/suivi/inactivity-monitor'
 import { HealthOverview } from '@/components/suivi/health-overview'
 import { AttendanceManager } from '@/components/suivi/attendance-manager'
+import { ApprenticeProgressTracker } from '@/components/suivi/apprentice-progress-tracker'
 import { AlertTriangle, Activity, CheckCircle } from 'lucide-react'
 
 export default async function SupervisionPage() {
@@ -28,9 +29,10 @@ export default async function SupervisionPage() {
         )
     }
 
-    const [stats, healthData, contracts] = await Promise.all([
+    const [stats, healthData, progressData, contracts] = await Promise.all([
         getApprenticeInactivity(),
         getContractsHealthOverview(),
+        getApprenticeProgressOverview(),
         db.contract.findMany({
             where: user.role === 'formateur' ? { formateurId: user.id } : {},
             include: { user: { select: { fullName: true } } }
@@ -52,6 +54,8 @@ export default async function SupervisionPage() {
             </div>
 
             <HealthOverview data={healthData} />
+
+            <ApprenticeProgressTracker data={progressData} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 pt-10 border-t border-slate-100">
                 <div className="lg:col-span-2">

@@ -132,6 +132,8 @@ export async function saveRNCPAction(rncpCode: string, title: string, structured
     await saveReferentielToDb(validatedData, targetTenantId, isGlobal);
 
     revalidatePath('/admin/import');
+    revalidatePath('/admin/referentiels');
+    revalidatePath('/admin/marketplace');
     return { success: true, message: `Référentiel ${rncpCode} importé avec succès` };
 
   } catch (e: any) {

@@ -112,3 +112,40 @@ export async function updateTSFDescription(contractId: string, competenceId: str
         return { error: "Erreur lors de la mise à jour" }
     }
 }
+
+export async function updateTSFStatusAndComment(payload: {
+    contractId: string
+    competenceId: string
+    periodId: string
+    status: string
+    comment?: string
+    token?: string
+}) {
+    const { contractId, competenceId, periodId, status, comment, token } = payload
+
+    const hasAccess = await verifyAccess(contractId, token)
+    if (!hasAccess) throw new Error('Unauthorized')
+
+    try {
+        await db.tSFMapping.update({
+            where: {
+                contractId_competenceId_periodId: {
+                    contractId,
+                    competenceId,
+                    periodId
+                }
+            },
+            data: {
+                status,
+                comment
+            }
+        })
+
+        revalidatePath(`/pedagogie/tsf`)
+        revalidatePath(`/admin/promotions`)
+        return { success: true }
+    } catch (e: any) {
+        console.error('Update TSF Status Failed:', e)
+        return { success: false, error: e.message }
+    }
+}

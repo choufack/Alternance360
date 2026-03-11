@@ -34,7 +34,8 @@ export function WorkflowSupervision({ stats }: { stats: WorkflowStat[] }) {
                             <th className="p-8">Apprenti / Dossier</th>
                             <th className="p-8 text-center">Étape 1 : Contrat</th>
                             <th className="p-8 text-center">Étape 2 : Positionnement</th>
-                            <th className="p-8 text-center">Étape 3 : TSF Validé</th>
+                            <th className="p-8 text-center">Étape 3 : TSF</th>
+                            <th className="p-8 text-center">Étape 4 : Tuteur</th>
                             <th className="p-8 text-right">Statut Workflow</th>
                         </tr>
                     </thead>
@@ -83,18 +84,31 @@ export function WorkflowSupervision({ stats }: { stats: WorkflowStat[] }) {
                                 <td className="p-8 text-center relative">
                                     <div className="flex justify-center">
                                         {s.step3 === 'DONE' ? (
-                                            <Lock className="text-emerald-500" size={24} />
+                                            <CheckCircle2 className="text-emerald-500" size={24} />
                                         ) : (
-                                            <Circle className={s.blockedAt === 3 ? "text-indigo-400" : "text-slate-200"} size={24} />
+                                            <Circle className={s.blockedAt === 3 ? "text-indigo-400 animate-pulse" : "text-slate-200"} size={24} />
                                         )}
                                     </div>
                                     {s.blockedAt === 3 && (
-                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-4 px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[8px] font-black uppercase rounded border border-indigo-100 text-nowrap">Signature J+7 Attendue</div>
+                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-4 px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[8px] font-black uppercase rounded border border-indigo-100 text-nowrap">TSF Attendu</div>
+                                    )}
+                                </td>
+
+                                <td className="p-8 text-center relative">
+                                    <div className="flex justify-center">
+                                        {s.step4 === 'DONE' ? (
+                                            <Lock className="text-emerald-500" size={24} />
+                                        ) : (
+                                            <Circle className={s.blockedAt === 4 ? "text-amber-500 animate-pulse" : "text-slate-200"} size={24} />
+                                        )}
+                                    </div>
+                                    {s.blockedAt === 4 && (
+                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-4 px-2 py-0.5 bg-amber-50 text-amber-700 text-[8px] font-black uppercase rounded border border-amber-100 text-nowrap">Validation Tuteur</div>
                                     )}
                                 </td>
 
                                 <td className="p-8 text-right">
-                                    {s.step3 === 'DONE' ? (
+                                    {s.step4 === 'DONE' ? (
                                         <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 gap-1.5 px-3 py-1 font-bold uppercase tracking-widest text-[10px]">
                                             <CheckCircle2 size={12} /> Complété
                                         </Badge>

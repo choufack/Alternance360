@@ -81,8 +81,9 @@ export async function submitEvaluationAction(payload: EvaluationPayload) {
                     type: 'TUTOR_ACCESS',
                     expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
                     userId: tutor.id,
-                    contractId: contractId
-                }
+                    contractId: contractId,
+                    periodId: periodId // Link to the same period as the apprentice
+                } as any
             })
 
             await sendEmailToTutor(

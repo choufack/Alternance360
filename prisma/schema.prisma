@@ -107,6 +107,7 @@ model BlocCompetence {
   id            String       @id @default(uuid())
   title         String
   orderIndex    Int          @default(0)
+  periodIndex   Int          @default(0)
   createdAt     DateTime     @default(now())
   tenantId      String?
   referentielId String
@@ -171,9 +172,14 @@ model Indicateur {
 
 model EvaluationCompetence {
   id            String     @id @default(uuid())
-  status        String     @default("PENDING")
-  comment       String?
-  isSigned      Boolean    @default(false)
+  status        String     @default("PENDING") // Apprentice status
+  comment       String?                        // Apprentice comment
+  tutorStatus    String?                       // Tutor status
+  tutorComment   String?                       // Tutor comment
+  tutorValidatedAt DateTime?
+  apprenticeSignature Boolean @default(false)
+  tutorSignature      Boolean @default(false)
+  isSigned      Boolean    @default(false)     // Maintain for compatibility
   signedAt      DateTime?
   signatureData String?
   validatorId   String?
@@ -282,6 +288,7 @@ model TSFMapping {
   plannedEnd            DateTime?
   lieu                  String?
   status                String     @default("PENDING")
+  comment               String?
   flagCfa               Boolean    @default(false)
   flagEntreprise        Boolean    @default(false)
   createdAt             DateTime   @default(now())

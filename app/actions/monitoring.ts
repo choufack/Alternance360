@@ -123,6 +123,21 @@ export async function getContractHealth(contractId: string) {
         }
     }
 
+    // 4. Tutor Validation Delay (-15 if pending > 7 days)
+    const pendingTutor = await db.evaluationCompetence.findMany({
+        where: {
+            contractId,
+            status: { not: 'PENDING' }, // Apprentice has submitted (assuming status changes from PENDING)
+            tutorStatus: null,
+            updatedAt: { lt: addDays(new Date(), -7) }
+        }
+    })
+
+    if (pendingTutor.length > 0) {
+        score -= 15
+        reasons.push("Validation tuteur en attente depuis plus de 7 jours")
+    }
+
     // Clamp score
     const finalScore = Math.max(0, score)
 

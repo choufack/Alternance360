@@ -143,12 +143,84 @@ export async function getContractsHealthOverview(filters?: GovernanceFilters): P
     return overview.sort((a, b) => a.healthScore - b.healthScore) // Worst first
 }
 
+export type ApprenticeProgressOverview = {
+    contractId: string
+    apprenticeName: string
+    referentielTitle: string
+    cfaProgress: number // Based on indicators
+    entrepriseProgress: number // Based on tutor validation of competences
+    apprenticeProgress: number // Based on apprentice self-eval of competences
+}
+
+export async function getApprenticeProgressOverview(): Promise<ApprenticeProgressOverview[]> {
+    const session = await auth()
+    if (!session?.user?.id) throw new Error("Unauthorized")
+
+    const user = await db.user.findUnique({ where: { id: session.user.id } })
+    const whereClause: any = {}
+    if (session.user.tenantId) whereClause.tenantId = session.user.tenantId
+    if (user?.role === 'formateur') whereClause.formateurId = user.id
+
+    const contracts = await db.contract.findMany({
+        where: whereClause,
+        include: {
+            user: { select: { fullName: true } },
+            referentiel: { select: { title: true } },
+            tsfEvaluations: { select: { status: true } }, // EvaluationIndicateur for CFA
+            evaluationCompetences: { select: { status: true, tutorStatus: true } }, // for Apprentice/Tutor
+            tsfMapping: {
+                select: {
+                    competence: {
+                        select: {
+                            indicateurs: { select: { id: true } }
+                        }
+                    }
+                }
+            }
+        }
+    })
+
+    return contracts.map(c => {
+        const contract = c as any;
+        // CFA Progress (Indicators)
+        const totalIndicators = contract.tsfMapping.reduce((acc: number, tsf: any) => acc + (tsf.competence?.indicateurs?.length || 0), 0)
+        let cfaProgress = 0
+        if (totalIndicators > 0) {
+            const acquiredInd = contract.tsfEvaluations.filter((e: any) => e.status === 'ACQUIS').length
+            cfaProgress = Math.round((acquiredInd / totalIndicators) * 100)
+        }
+
+        // Apprentice & Tutor Progress (Competences)
+        const totalCompetences = contract.tsfMapping.length
+        let apprenticeProgress = 0
+        let entrepriseProgress = 0
+
+        if (totalCompetences > 0) {
+            const selfEvalCount = contract.evaluationCompetences.filter((e: any) => e.status && e.status !== 'PENDING').length
+            const tutorEvalCount = contract.evaluationCompetences.filter((e: any) => e.tutorStatus && e.tutorStatus !== 'PENDING').length
+
+            apprenticeProgress = Math.round((selfEvalCount / totalCompetences) * 100)
+            entrepriseProgress = Math.round((tutorEvalCount / totalCompetences) * 100)
+        }
+
+        return {
+            contractId: contract.id,
+            apprenticeName: contract.user?.fullName || "Inconnu",
+            referentielTitle: contract.referentiel?.title || "N/A",
+            cfaProgress,
+            entrepriseProgress,
+            apprenticeProgress
+        }
+    })
+}
+
 export type WorkflowStat = {
     contractId: string
     apprenticeName: string
     step1: 'DONE' | 'PENDING' // Contract Created
     step2: 'DONE' | 'PENDING' // Assessment Completed
-    step3: 'DONE' | 'PENDING' // TSF Validated
+    step3: 'DONE' | 'PENDING' // TSF Ready
+    step4: 'DONE' | 'PENDING' // Tutor Validation
     blockedAt: number | null
 }
 
@@ -161,23 +233,29 @@ export async function getWorkflowSupervision(): Promise<WorkflowStat[]> {
         include: {
             user: { select: { fullName: true } },
             initialAssessments: { select: { status: true } },
+            evaluationCompetences: {
+                select: { tutorStatus: true }
+            }
         }
     })
 
     return contracts.map(c => {
         const assessmentDone = c.initialAssessments.some(a => a.status === 'VALIDATED')
         const tsfValidated = (c as any).tsfStatus === 'VALIDATED'
+        const tutorValidated = c.evaluationCompetences.length > 0 && c.evaluationCompetences.every(e => (e as any).tutorStatus === 'VALIDATED')
 
         let blockedAt: number | null = null
         if (!assessmentDone) blockedAt = 2
         else if (!tsfValidated) blockedAt = 3
+        else if (!tutorValidated) blockedAt = 4
 
         return {
             contractId: c.id,
             apprenticeName: c.user?.fullName || "Inconnu",
-            step1: 'DONE', // If contract exists, step 1 is done
+            step1: 'DONE',
             step2: assessmentDone ? 'DONE' : 'PENDING',
             step3: tsfValidated ? 'DONE' : 'PENDING',
+            step4: tutorValidated ? 'DONE' : 'PENDING',
             blockedAt
         }
     })

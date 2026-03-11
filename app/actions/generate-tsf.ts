@@ -97,8 +97,15 @@ export async function internalGenerateTSF(contractId: string, overrideStartDate?
                 const nbBlocs = blocs.length || 1
 
                 blocs.forEach((bloc: any, index: number) => {
-                    const periodIndexRaw = Math.floor((index / nbBlocs) * periodsIds.length)
-                    const targetPeriodId = periodsIds[Math.min(periodIndexRaw, periodsIds.length - 1)]
+                    // Logic: Use periodIndex if specified (>0), otherwise distribute
+                    let targetPeriodIdx = (bloc as any).periodIndex
+
+                    if (!targetPeriodIdx || targetPeriodIdx > periodsIds.length) {
+                        targetPeriodIdx = Math.floor((index / nbBlocs) * periodsIds.length) + 1
+                    }
+
+                    const finalIdx = Math.min(targetPeriodIdx - 1, periodsIds.length - 1)
+                    const targetPeriodId = periodsIds[finalIdx]
 
                     bloc.competences.forEach((comp: any) => {
                         const isAcquis = acquisMap.has(comp.id)
@@ -106,7 +113,7 @@ export async function internalGenerateTSF(contractId: string, overrideStartDate?
                         inserts.push({
                             contractId,
                             competenceId: comp.id,
-                            periodId: targetPeriodId, // Actually assign the period
+                            periodId: targetPeriodId,
                             status: isAcquis ? 'ACQUIS' : 'PENDING',
                             flagCfa: !isAcquis,
                             flagEntreprise: !isAcquis

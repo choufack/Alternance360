@@ -1,5 +1,6 @@
 import { ShieldAlert } from 'lucide-react'
 import Link from 'next/link'
+import { signOut } from '@/auth'
 
 export default function UnauthorizedPage() {
     return (
@@ -15,9 +16,14 @@ export default function UnauthorizedPage() {
                 <Link href="/" className="px-8 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all">
                     Accueil
                 </Link>
-                <Link href="/login" className="px-8 py-3 bg-blue-900 text-white rounded-xl font-bold hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/10">
-                    Se connecter
-                </Link>
+                <form action={async () => {
+                    'use server'
+                    await signOut({ redirectTo: '/login' })
+                }}>
+                    <button type="submit" className="px-8 py-3 bg-blue-900 text-white rounded-xl font-bold hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/10">
+                        Se déconnecter et réessayer
+                    </button>
+                </form>
             </div>
         </div>
     )
