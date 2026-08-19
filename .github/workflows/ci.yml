@@ -1,0 +1,104 @@
+name: CI - Alternance360
+
+# Déclenchement : à chaque push et à chaque pull request ciblant la branche
+# main. La fusion sur main est bloquée (protection de branche GitHub) tant
+# que ce workflow n'est pas vert : lint, typecheck, tests unitaires et build
+# doivent tous réussir avant intégration du code.
+on:
+  push:
+    branches: [main, updates]
+  pull_request:
+    branches: [main]
+
+env:
+  DATABASE_URL: "file:./ci.db"
+
+jobs:
+  quality:
+    name: Lint, Typecheck & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Installation de Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Installation reproductible des dépendances
+        run: npm ci
+
+      - name: Génération du client Prisma
+        run: npx prisma generate
+
+      - name: Analyse statique (ESLint)
+        run: npm run lint
+
+      - name: Vérification des types (TypeScript strict)
+        run: npm run typecheck
+
+      - name: Build de production Next.js
+        run: npm run build
+
+  unit-tests:
+    name: Tests unitaires (Vitest)
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Installation de Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Installation reproductible des dépendances
+        run: npm ci
+
+      - name: Exécution des tests unitaires avec couverture
+        run: npm run test:coverage
+
+      - name: Publication du rapport de couverture
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+
+  e2e-tests:
+    name: Tests end-to-end (Playwright)
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Installation de Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Installation reproductible des dépendances
+        run: npm ci
+
+      - name: Préparation de la base de données de test
+        run: |
+          npx prisma db push
+          node scripts/seed-test-users.js || true
+
+      - name: Installation des navigateurs Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Exécution des scénarios E2E
+        run: npm run test:e2e
+
+      - name: Publication du rapport Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/

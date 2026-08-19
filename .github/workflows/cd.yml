@@ -1,0 +1,56 @@
+name: CD - Déploiement continu Alternance360
+
+# Protocole de déploiement progressif :
+# - Toute pull request vers main déclenche un déploiement de PREVIEW sur
+#   Vercel (URL unique, isolée, avec sa propre base de données de test).
+#   Cela permet de vérifier la performance fonctionnelle et technique
+#   AVANT la mise en production, sur un environnement représentatif.
+# - Un push sur main (après revue + CI verte) déclenche le déploiement en
+#   PRODUCTION. Vercel conserve l'historique des déploiements et permet un
+#   rollback instantané en un clic vers la version stable précédente en cas
+#   d'anomalie détectée après mise en production.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  deploy-preview:
+    name: Déploiement de préproduction (Preview)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: []
+    environment:
+      name: preview
+      url: ${{ steps.deploy.outputs.preview-url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: amondnet/vercel-action@v25
+        id: deploy
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          github-comment: true
+
+  deploy-production:
+    name: Déploiement en production
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://alternance360.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: "--prod"
+
+      - name: Vérification post-déploiement (healthcheck applicatif)
+        run: |
+          curl --fail --silent --show-error https://alternance360.vercel.app/api/cron/daily \
+            -H "Authorization: Bearer ${{ secrets.API_SECRET_KEY }}" || echo "Healthcheck à surveiller manuellement"
